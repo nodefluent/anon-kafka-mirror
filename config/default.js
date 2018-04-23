@@ -2,21 +2,14 @@
 
 const config = {
   logger: {
-    productionMode: false,
-    logDir: "logs",
-    skipEnhance: true,
-    namespace: "",
-    silence: false,
-    loggerName: "dev",
-    dockerMode: false,
-    varKey: "LOG",
-    level: "INFO",
-    serviceName: "anon-kafka-mirror"
+    level: "info",
+    name: "anon-kafka-mirror",
+    prettyPrint: process.env.NODE_ENV !== "production"
   },
   consumer: {
     noptions: {
       "metadata.broker.list": "localhost:9092",
-      "group.id": "anon-kafka-default",
+      "group.id": "anon-kafka-default-1",
     },
     tconf: {
       "auto.offset.reset": "earliest",
@@ -25,7 +18,32 @@ const config = {
   producer: {
     noptions: {
       "metadata.broker.list": "localhost:9092",
-      "group.id": "anon-kafka-default",
+      "group.id": "anon-kafka-default-2",
+      "client.id": "lol-was-geht-ab",
+      "event_cb": true,
+      "compression.codec": "snappy",
+      "api.version.request": true,
+
+      "socket.keepalive.enable": true,
+      "socket.blocking.max.ms": 100,
+
+      "enable.auto.commit": false,
+      "auto.commit.interval.ms": 100,
+
+      "heartbeat.interval.ms": 250,
+      "retry.backoff.ms": 250,
+
+      "fetch.min.bytes": 100,
+      "fetch.message.max.bytes": 2 * 1024 * 1024,
+      "queued.min.messages": 100,
+
+      "fetch.error.backoff.ms": 100,
+      "queued.max.messages.kbytes": 50,
+
+      "fetch.wait.max.ms": 1000,
+      "queue.buffering.max.ms": 1000,
+
+      "batch.num.messages": 10000
     },
     tconf: {
       "request.required.acks": 1,

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const program = require("commander");
-const Logger = require("log4bro");
+const pino = require("pino");
 
 const {AnonKafkaMirror} = require("./../index.js");
 const config = require("./../config/default");
@@ -20,14 +20,14 @@ if(program.topic){
 }
 
 if(program.loglevel){
-  config.logger.level = program.loglevel.toUpperCase();
+  config.logger.level = program.loglevel;
 }
 
 if(config.logger){
-  const logger =new Logger(config.logger);
+  const logger = pino(config.logger);
   config.logger = logger;
-  config.consumer.logger = logger.createChild({"stream": "consumer"});
-  config.producer.logger = logger.createChild({"stream": "producer"});
+  config.consumer.logger = logger.child({"stream": "consumer"});
+  config.producer.logger = logger.child({"stream": "producer"});
 }
 
 const mirror = new AnonKafkaMirror(config);

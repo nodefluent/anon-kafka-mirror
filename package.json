@@ -8,7 +8,8 @@
   "scripts": {
     "start": "node index.js",
     "lint": "eslint .",
-    "fix": "eslint --fix ."
+    "fix": "eslint --fix .",
+    "setup": "docker-compose up -d"
   },
   "devDependencies": {
     "eslint": "^4.17.0",
@@ -18,8 +19,8 @@
     "commander": "^2.14.1",
     "faker": "^4.1.0",
     "immutable": "^3.8.2",
-    "kafka-streams": "^3.0.0",
-    "log4bro": "^3.4.0"
+    "kafka-streams": "^4.0.0",
+    "pino": "^4.16.1"
   },
   "preferGlobal": true,
   "bin": {
