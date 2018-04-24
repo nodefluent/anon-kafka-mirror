@@ -11,10 +11,10 @@ let config = require("./../config/default");
 
 program
     .version(pjson.version)
-    .option("-b, --consume-broker-list [string]", "The broker list string to consumer in the form HOST1:PORT1,HOST2:PORT2.")
-    .option("-p, --produce-broker-list [string]", "The broker list string to produce in the form HOST1:PORT1,HOST2:PORT2.")
-    .option("-t, --consume-topic [string]", "Kafka topic to consume.")
-    .option("-n, --produce-topic [string]", "Kafka topic to produce.")
+    .option("-b, --consumer-broker-list [string]", "The broker list string to consumer in the form HOST1:PORT1,HOST2:PORT2.")
+    .option("-p, --producer-broker-list [string]", "The broker list string to produce in the form HOST1:PORT1,HOST2:PORT2.")
+    .option("-t, --consumer-topic [string]", "Kafka topic to consume.")
+    .option("-n, --producer-topic [string]", "Kafka topic to produce.")
     .option("-g, --consumer-group [string]", "Kafka consumer group.")
     .option("-c, --config-file [string]", "Anon kafka config file.")
     .option("-f, --topic-config-file [string]", "Anon kafka topic config file.")
@@ -67,8 +67,8 @@ if (!config.producer.noptions["metadata.broker.list"]) {
     program.help();
 }
 
-if(program.topic){
-    config.topic.name = program.topic;
+if(program.consumerTopic){
+    config.topic.name = program.consumerTopic;
 }
 
 if (!config.topic.name) {
@@ -76,8 +76,8 @@ if (!config.topic.name) {
     program.help();
 }
 
-if (program.newTopic) {
-    config.topic.newName = program.newTopic;
+if (program.producerTopic) {
+    config.topic.newName = program.producerTopic;
 }
 
 if(config.logger){
