@@ -8,8 +8,8 @@ const config = {
     },
     consumer: {
         noptions: {
-            "metadata.broker.list": "localhost:9092",
-            "group.id": "anon-kafka-default-1",
+            "metadata.broker.list": "",
+            "group.id": "",
         },
         tconf: {
             "auto.offset.reset": "earliest",
@@ -17,17 +17,17 @@ const config = {
     },
     producer: {
         noptions: {
-            "metadata.broker.list": "localhost:9092",
-            "group.id": "anon-kafka-default-2",
-            "client.id": "lol-was-geht-ab",
+            "metadata.broker.list": "",
+            "group.id": "",
+            "client.id": "anon-kafka-mirror",
         },
         tconf: {
             "request.required.acks": 1,
         },
     },
     topic: {
-        name: "test",
-        newName: "test-new",
+        name: "",
+        newName: "",
         key: {
             proxy: false,
             type: "string"
