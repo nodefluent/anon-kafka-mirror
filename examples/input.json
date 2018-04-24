@@ -1,0 +1,29 @@
+{
+    "name": "",
+    "key": {
+        "proxy": false,
+        "type": "string"
+    },
+    "proxy": [
+        "bla.blup",
+        "abc",
+        "test"
+    ],
+    "alter": [
+        {
+            "name": "id",
+            "type": "string",
+            "format": "random.uuid4"
+        },
+        {
+            "name": "mail",
+            "dataType": "string",
+            "format": "internet.email"
+        },
+        {
+            "name": "number",
+            "type": "integer",
+            "format": "random.number"
+        }
+    ]
+}
