@@ -883,9 +883,9 @@ kafka-node@~2.4.1:
   optionalDependencies:
     snappy "^6.0.1"
 
-kafka-streams@^4.0.0:
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/kafka-streams/-/kafka-streams-4.0.0.tgz#d56a4b87186fd3a050001594b0ab185817a893ee"
+kafka-streams@^4.1.0:
+  version "4.1.0"
+  resolved "https://registry.yarnpkg.com/kafka-streams/-/kafka-streams-4.1.0.tgz#7914c47df4341bacf018ee741908f387b66e2413"
   dependencies:
     bluebird "~3.5.1"
     debug "~3.1.0"
