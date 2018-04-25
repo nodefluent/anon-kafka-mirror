@@ -50,3 +50,29 @@ services:
             ]
         volumes:
             - ./examples:/config
+
+    # anon-kafka-mirror-local:
+    #     build:
+    #         context: .
+    #         dockerfile: local.Dockerfile
+    #     restart: always
+    #     links:
+    #         - kafka
+    #     depends_on:
+    #         kafka:
+    #             condition: service_healthy
+    #     environment:
+    #         DEBUG: "*"
+    #     command: [
+    #         "nodemon",
+    #         "/usr/src/app/bin/anon-kafka-mirror.js", 
+    #         "--consumer-broker-list=kafka:9093",
+    #         "--consumer-topic=input", 
+    #         "--producer-broker-list=kafka:9093",
+    #         "--producer-topic=output",
+    #         "--consumer-group=test-group",
+    #         "--topic-config-file=/usr/src/app/examples/input.json"
+    #         ]
+    #     volumes:
+    #         - .:/usr/src/app
+    #         - /usr/src/app/node_modules
