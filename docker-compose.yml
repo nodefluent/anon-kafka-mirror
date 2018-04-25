@@ -9,15 +9,18 @@ services:
         ports:
             - "9092:9092"
         links:
-            - zookeeper:zookeeper
+            - zookeeper
         depends_on:
             - zookeeper
+        healthcheck:
+            test: echo '' | nc -w 1 "kafka" 9093
         environment:
             KAFKA_BROKER_ID: 1
             KAFKA_PORT: 9092
             KAFKA_ADVERTISED_HOST_NAME: "kafka"
-            KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
-            KAFKA_LISTENERS: "PLAINTEXT://:9092"
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,SSL:SSL,SASL_PLAINTEXT:SASL_PLAINTEXT,SASL_SSL:SASL_SSL,OUTSIDE:PLAINTEXT"
+            KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9093,OUTSIDE://localhost:9092"
+            KAFKA_LISTENERS: "PLAINTEXT://:9093,OUTSIDE://:9092"
             KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
             KAFKA_CREATE_TOPICS: "input:1:1,output:1:1"
             KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
@@ -32,15 +35,16 @@ services:
         links:
             - kafka
         depends_on:
-            - kafka
+            kafka:
+                condition: service_healthy
         environment:
             DEBUG: "*"
         command: [
             "anon-kafka-mirror", 
-            "--consume-broker-list=kafka:9092",
-            "--consume-topic=input", 
-            "--produce-broker-list=kafka:9092",
-            "--produce-topic=output",
+            "--consumer-broker-list=kafka:9093",
+            "--consumer-topic=input", 
+            "--producer-broker-list=kafka:9093",
+            "--producer-topic=output",
             "--consumer-group=test-group",
             "--topic-config-file=/config/input.json"
             ]
