@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const program = require("commander");
+const commander = require("commander");
 const pino = require("pino");
 const fs = require("fs");
 const path = require("path");
@@ -9,7 +9,7 @@ const {AnonKafkaMirror} = require("./../index.js");
 const pjson = require("./../package.json");
 let config = require("./../config/default");
 
-program
+commander
     .version(pjson.version)
     .option("-b, --consumer-broker-list [string]", "The broker list string to consumer in the form HOST1:PORT1,HOST2:PORT2.")
     .option("-p, --producer-broker-list [string]", "The broker list string to produce in the form HOST1:PORT1,HOST2:PORT2.")
@@ -19,19 +19,20 @@ program
     .option("-c, --config-file [string]", "Anon kafka config file.")
     .option("-f, --topic-config-file [string]", "Anon kafka topic config file.")
     .option("-l, --level [string]", "Log level (debug,info,warn,error)")
+    .option("-d, --dry-run", "Just read message from stdin, convert, print output and exit.")
     .parse(process.argv);
 
-if (program.configFile && fs.existsSync(program.configFile)) {
+if (commander.configFile && fs.existsSync(commander.configFile)) {
     try {
-        config = require(path.resolve(program.configFile));
+        config = require(path.resolve(commander.configFile));
     } catch(e) {
         console.error("Could not read config file", e);
     }
 }
 
-if (program.topicConfigFile && fs.existsSync(program.topicConfigFile)) {
+if (commander.topicConfigFile && fs.existsSync(commander.topicConfigFile)) {
     try {
-        config.topic = require(path.resolve(program.topicConfigFile));
+        config.topic = require(path.resolve(commander.topicConfigFile));
     } catch (e) {
         console.error("Could not read config file", e);
     }
@@ -41,48 +42,48 @@ if (!config.topic ||
     !config.consumer || !config.consumer.noptions || 
     !config.producer || !config.producer.noptions) {
     console.error("Config file does not contains topic, consumer or producer configurations.");
-    program.help();
+    commander.help();
 }
 
-if(program.consumerGroup) {
-    config.consumer.noptions["group.id"] = program.consumerGroup;
-    config.producer.noptions["group.id"] = program.consumerGroup;
+if(commander.consumerGroup) {
+    config.consumer.noptions["group.id"] = commander.consumerGroup;
+    config.producer.noptions["group.id"] = commander.consumerGroup;
 }
 
-if (program.consumerBrokerList) {
-    config.consumer.noptions["metadata.broker.list"] = program.consumerBrokerList;
+if (commander.consumerBrokerList) {
+    config.consumer.noptions["metadata.broker.list"] = commander.consumerBrokerList;
 }
 
 if (!config.consumer.noptions["metadata.broker.list"]) {
     console.error("Consumer broker list is required.");
-    program.help();
+    commander.help();
 }
 
-if (program.producerBrokerList) {
-    config.producer.noptions["metadata.broker.list"] = program.producerBrokerList;
+if (commander.producerBrokerList) {
+    config.producer.noptions["metadata.broker.list"] = commander.producerBrokerList;
 }
 
 if (!config.producer.noptions["metadata.broker.list"]) {
     console.error("Producer broker list is required.");
-    program.help();
+    commander.help();
 }
 
-if(program.consumerTopic){
-    config.topic.name = program.consumerTopic;
+if(commander.consumerTopic){
+    config.topic.name = commander.consumerTopic;
 }
 
 if (!config.topic.name) {
     console.error("Topic name is required.");
-    program.help();
+    commander.help();
 }
 
-if (program.producerTopic) {
-    config.topic.newName = program.producerTopic;
+if (commander.producerTopic) {
+    config.topic.newName = commander.producerTopic;
 }
 
 if(config.logger){
-    if (program.loglevel) {
-        config.logger.level = program.loglevel;
+    if (commander.loglevel) {
+        config.logger.level = commander.loglevel;
     }
     const logger = pino(config.logger);
     config.logger = logger;
@@ -90,6 +91,30 @@ if(config.logger){
     config.producer.logger = logger.child({"stream": "producer"});
 }
 
-
 const mirror = new AnonKafkaMirror(config);
-mirror.run();
+
+if (commander.dryRun) {
+    const stdin = process.stdin;
+    const stdout = process.stdout;
+    const inputChunks = [];
+    stdin.resume();
+    stdin.setEncoding("utf8");
+    stdin.on("data", function (chunk) {
+        inputChunks.push(chunk);
+    });
+    stdin.on("end", function () {
+        try {
+            const inputJSON = inputChunks.join();
+            const parsedData = JSON.parse(inputJSON);
+            const mappedJSON = mirror.mapMessage(parsedData);
+            const outputJSON = JSON.stringify(mappedJSON, null, 4);
+            stdout.write(outputJSON);
+            stdout.write("\n");
+        } catch (e) {
+            console.log("Could not map message: ", e);
+        }
+        process.exit(0);
+    });
+} else {
+    mirror.run();
+}

@@ -1,13 +1,18 @@
 {
     "name": "",
     "key": {
-        "proxy": false,
+        "proxy": true,
         "type": "string"
     },
     "proxy": [
         "bla.blup",
         "abc",
-        "test"
+        "test",
+        "a[*]",
+        "b[*]c",
+        "c[*][*]",
+        "d[*][*].e",
+        "f[*].g[*]"
     ],
     "alter": [
         {

@@ -36,7 +36,7 @@ const config = {
         alter: [{
             name: "id",
             type: "string",
-            format: "random.uuid4"
+            format: "random.uuid"
         },
         {
             name: "mail",
