@@ -4,7 +4,7 @@ const config = {
     logger: {
         level: "info",
         name: "anon-kafka-mirror",
-        prettyPrint: process.env.NODE_ENV !== "production"
+        prettyPrint: process.env.NODE_ENV !== "production",
     },
     consumer: {
         noptions: {
@@ -14,6 +14,7 @@ const config = {
         tconf: {
             "auto.offset.reset": "earliest",
         },
+        logger: null,
     },
     producer: {
         noptions: {
@@ -24,31 +25,32 @@ const config = {
         tconf: {
             "request.required.acks": 1,
         },
+        logger: null,
     },
     topic: {
         name: "",
         newName: "",
         key: {
             proxy: false,
-            type: "string"
+            type: "string",
         },
         proxy: ["bla.blup", "derp", "xyz"],
         alter: [{
             name: "id",
             type: "string",
-            format: "random.uuid"
+            format: "random.uuid",
         },
         {
             name: "mail",
             dataType: "string",
-            format: "internet.email" //<- https://github.com/marak/Faker.js/
+            format: "internet.email", // <- https://github.com/marak/Faker.js/
         },
         {
             name: "kaese.relation_id",
             type: "integer",
-            format: "random.number"
-        }]
-    }
+            format: "random.number",
+        }],
+    },
 };
 
-module.exports = config;
+export default config;

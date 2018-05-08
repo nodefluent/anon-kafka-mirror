@@ -6,14 +6,19 @@
   "author": "nodefluent",
   "license": "MIT",
   "scripts": {
-    "start": "node bin/anon-kafka-mirror.js",
-    "lint": "eslint .",
-    "fix": "eslint --fix .",
-    "setup": "docker-compose up -d"
+    "start": "node dist/index.js",
+    "setup": "docker-compose up -d",
+    "build": "tsc && docker-compose build --no-cache"
   },
   "devDependencies": {
+    "@types/faker": "^4.1.2",
+    "@types/mocha": "^5.2.0",
+    "@types/node": "^10.0.4",
+    "@types/pino": "^4.7.1",
     "eslint": "^4.17.0",
-    "mocha": "^5.0.0"
+    "mocha": "^5.1.1",
+    "tslint": "^5.10.0",
+    "typescript": "^2.8.3"
   },
   "dependencies": {
     "commander": "^2.14.1",
@@ -24,6 +29,6 @@
   },
   "preferGlobal": true,
   "bin": {
-    "anon-kafka-mirror": "bin/anon-kafka-mirror.js"
+    "anon-kafka-mirror": "dist/index.js"
   }
 }
