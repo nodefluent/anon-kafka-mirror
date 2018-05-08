@@ -29,32 +29,8 @@ services:
             - /tmp/kafka-data/logs:/logs
             - /var/run/docker.sock:/var/run/docker.sock
 
-    anon-kafka-mirror:
-        image: quay.io/nodefluent/anon-kafka-mirror:latest
-        restart: always
-        links:
-            - kafka
-        depends_on:
-            kafka:
-                condition: service_healthy
-        environment:
-            DEBUG: "*"
-        command: [
-            "anon-kafka-mirror", 
-            "--consumer-broker-list=kafka:9093",
-            "--consumer-topic=input", 
-            "--producer-broker-list=kafka:9093",
-            "--producer-topic=output",
-            "--consumer-group=test-group",
-            "--topic-config-file=/config/input.json"
-            ]
-        volumes:
-            - ./examples:/config
-
-    # anon-kafka-mirror-local:
-    #     build:
-    #         context: .
-    #         dockerfile: local.Dockerfile
+    # anon-kafka-mirror:
+    #     image: quay.io/nodefluent/anon-kafka-mirror:latest
     #     restart: always
     #     links:
     #         - kafka
@@ -64,15 +40,39 @@ services:
     #     environment:
     #         DEBUG: "*"
     #     command: [
-    #         "nodemon",
-    #         "/usr/src/app/bin/anon-kafka-mirror.js", 
+    #         "anon-kafka-mirror", 
     #         "--consumer-broker-list=kafka:9093",
     #         "--consumer-topic=input", 
     #         "--producer-broker-list=kafka:9093",
     #         "--producer-topic=output",
     #         "--consumer-group=test-group",
-    #         "--topic-config-file=/usr/src/app/examples/input.json"
+    #         "--topic-config-file=/config/input.json"
     #         ]
     #     volumes:
-    #         - .:/usr/src/app
-    #         - /usr/src/app/node_modules
+    #         - ./examples:/config
+
+    anon-kafka-mirror-local:
+        build:
+            context: .
+            dockerfile: local.Dockerfile
+        restart: always
+        links:
+            - kafka
+        depends_on:
+            kafka:
+                condition: service_healthy
+        environment:
+            DEBUG: "*"
+        command: [
+            "nodemon",
+            "/usr/src/app/dist/index.js", 
+            "--consumer-broker-list=kafka:9093",
+            "--consumer-topic=input", 
+            "--producer-broker-list=kafka:9093",
+            "--producer-topic=output",
+            "--consumer-group=test-group",
+            "--topic-config-file=/usr/src/app/examples/input.json"
+            ]
+        volumes:
+            - .:/usr/src/app
+            - /usr/src/app/node_modules

@@ -36,10 +36,10 @@ export interface IConfig {
     };
 }
 export declare const arrayMatch: RegExp;
+export declare const mapMessage: (config: IConfig, m: any) => any;
 export declare class AnonKafkaMirror {
-    private config;
+    config: IConfig;
     private stream;
     constructor(config: IConfig);
-    mapMessage(m: any): any;
     run(): void;
 }

@@ -131,8 +131,56 @@ const parseByKey = (key: string, map: Map<string, any>, inputMessage: Map<string
     return map;
 };
 
+export const mapMessage = (config: IConfig, m: any) => {
+    const inputMessage = fromJS(m);
+    config.consumer.logger.debug(inputMessage.toJS(), "Got message");
+    let outputMessage = Map<string, any>();
+    outputMessage = outputMessage.set("offset", inputMessage.get("offset"));
+    outputMessage = outputMessage.set("partition", inputMessage.get("partition"));
+    outputMessage = outputMessage.set("timestamp", inputMessage.get("timestamp"));
+    outputMessage = outputMessage.set("topic", config.topic.newName || inputMessage.get("topic"));
+
+    if (config.topic.key && config.topic.key.proxy === false) {
+        if (config.topic.key.format) {
+            const newKey = faker.fake(`{{${config.topic.key.format}}}`);
+            if (newKey) {
+                outputMessage = outputMessage.set("key", newKey);
+            }
+        }
+    }
+    if (config.topic.key && config.topic.key.proxy) {
+        outputMessage = outputMessage.set("key", inputMessage.get("key"));
+    }
+    if (!outputMessage.get("key")) {
+        outputMessage = outputMessage.set("key", null);
+    }
+
+    if (!inputMessage.get("value") || typeof inputMessage.get("value") !== "object") {
+        outputMessage = outputMessage.set("value", inputMessage.get("value"));
+        return outputMessage.toJS();
+    }
+
+    if (config.topic.proxy && config.topic.proxy instanceof Array) {
+        config.topic.proxy.forEach((key) => {
+            outputMessage = parseByKey(`value.${key}`, outputMessage, inputMessage);
+        });
+    }
+
+    if (config.topic.alter && config.topic.alter instanceof Array) {
+        config.topic.alter.forEach((key) => {
+            outputMessage = parseByKey(`value.${key.name}`, outputMessage, inputMessage, key.format);
+        });
+    }
+    let value = outputMessage.get("value");
+    if (value && typeof value === "object") {
+        value = JSON.stringify(value);
+    }
+    outputMessage = outputMessage.set("value", value);
+    return outputMessage.toJS();
+}
+
 export class AnonKafkaMirror {
-    private config: IConfig = undefined;
+    config: IConfig = undefined;
     private stream: any = {};
     constructor(config: IConfig) {
         this.config = config;
@@ -142,60 +190,13 @@ export class AnonKafkaMirror {
         this.stream
             .from(config.topic.name)
             .mapJSONConvenience()
-            .map(this.mapMessage)
+            .map((m)=> mapMessage(config, m))
             .tap((message) => {
                 config.producer.logger.debug(message, "Transformed message");
             })
             .to();
     }
 
-    public mapMessage(m) {
-        const inputMessage = fromJS(m);
-        this.config.consumer.logger.debug(inputMessage.toJS(), "Got message");
-        let outputMessage = Map<string, any>();
-        outputMessage = outputMessage.set("offset", inputMessage.get("offset"));
-        outputMessage = outputMessage.set("partition", inputMessage.get("partition"));
-        outputMessage = outputMessage.set("timestamp", inputMessage.get("timestamp"));
-        outputMessage = outputMessage.set("topic", this.config.topic.newName || inputMessage.get("topic"));
-
-        if (this.config.topic.key && this.config.topic.key.proxy === false) {
-            if (this.config.topic.key.format) {
-                const newKey = faker.fake(`{{${this.config.topic.key.format}}}`);
-                if (newKey) {
-                    outputMessage = outputMessage.set("key", newKey);
-                }
-            }
-        }
-        if (this.config.topic.key && this.config.topic.key.proxy) {
-            outputMessage = outputMessage.set("key", inputMessage.get("key"));
-        }
-        if (!outputMessage.get("key")) {
-            outputMessage = outputMessage.set("key", null);
-        }
-
-        if (!inputMessage.get("value") || typeof inputMessage.get("value") !== "object") {
-            outputMessage = outputMessage.set("value", inputMessage.get("value"));
-            return outputMessage.toJS();
-        }
-
-        if (this.config.topic.proxy && this.config.topic.proxy instanceof Array) {
-            this.config.topic.proxy.forEach((key) => {
-                outputMessage = parseByKey(`value.${key}`, outputMessage, inputMessage);
-            });
-        }
-
-        if (this.config.topic.alter && this.config.topic.alter instanceof Array) {
-            this.config.topic.alter.forEach((key) => {
-                outputMessage = parseByKey(`value.${key.name}`, outputMessage, inputMessage, key.format);
-            });
-        }
-        let value = outputMessage.get("value");
-        if (value && typeof value === "object") {
-            value = JSON.stringify(value);
-        }
-        outputMessage = outputMessage.set("value", value);
-        return outputMessage.toJS();
-    }
     public run() {
         this.stream.start({ outputKafkaConfig: this.config.producer });
     }

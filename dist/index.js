@@ -93,7 +93,7 @@ if (commanderProgram.dryRun) {
         try {
             var inputJSON = inputChunks_1.join();
             var parsedData = JSON.parse(inputJSON);
-            var mappedJSON = mirror.mapMessage(parsedData);
+            var mappedJSON = AnonKafkaMirror_1.mapMessage(localConfig, parsedData);
             var outputJSON = JSON.stringify(mappedJSON, null, "    ");
             stdout_1.write(outputJSON);
             stdout_1.write("\n");

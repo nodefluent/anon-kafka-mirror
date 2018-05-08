@@ -4,7 +4,7 @@ import * as commanderProgram from "commander";
 import { existsSync, readFileSync} from "fs";
 import {resolve} from "path";
 import * as pino from "pino";
-import { AnonKafkaMirror } from "./lib/AnonKafkaMirror";
+import { AnonKafkaMirror, mapMessage } from "./lib/AnonKafkaMirror";
 import config from "./lib/config/default";
 let localConfig = config;
 
@@ -105,7 +105,7 @@ if (commanderProgram.dryRun) {
         try {
             const inputJSON = inputChunks.join();
             const parsedData = JSON.parse(inputJSON);
-            const mappedJSON = mirror.mapMessage(parsedData);
+            const mappedJSON = mapMessage(localConfig, parsedData);
             const outputJSON = JSON.stringify(mappedJSON, null, "    ");
             stdout.write(outputJSON);
             stdout.write("\n");

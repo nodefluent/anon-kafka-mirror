@@ -95,6 +95,49 @@ var parseByKey = function (key, map, inputMessage, format) {
     }
     return map;
 };
+exports.mapMessage = function (config, m) {
+    var inputMessage = immutable_1.fromJS(m);
+    config.consumer.logger.debug(inputMessage.toJS(), "Got message");
+    var outputMessage = immutable_1.Map();
+    outputMessage = outputMessage.set("offset", inputMessage.get("offset"));
+    outputMessage = outputMessage.set("partition", inputMessage.get("partition"));
+    outputMessage = outputMessage.set("timestamp", inputMessage.get("timestamp"));
+    outputMessage = outputMessage.set("topic", config.topic.newName || inputMessage.get("topic"));
+    if (config.topic.key && config.topic.key.proxy === false) {
+        if (config.topic.key.format) {
+            var newKey = faker.fake("{{" + config.topic.key.format + "}}");
+            if (newKey) {
+                outputMessage = outputMessage.set("key", newKey);
+            }
+        }
+    }
+    if (config.topic.key && config.topic.key.proxy) {
+        outputMessage = outputMessage.set("key", inputMessage.get("key"));
+    }
+    if (!outputMessage.get("key")) {
+        outputMessage = outputMessage.set("key", null);
+    }
+    if (!inputMessage.get("value") || typeof inputMessage.get("value") !== "object") {
+        outputMessage = outputMessage.set("value", inputMessage.get("value"));
+        return outputMessage.toJS();
+    }
+    if (config.topic.proxy && config.topic.proxy instanceof Array) {
+        config.topic.proxy.forEach(function (key) {
+            outputMessage = parseByKey("value." + key, outputMessage, inputMessage);
+        });
+    }
+    if (config.topic.alter && config.topic.alter instanceof Array) {
+        config.topic.alter.forEach(function (key) {
+            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format);
+        });
+    }
+    var value = outputMessage.get("value");
+    if (value && typeof value === "object") {
+        value = JSON.stringify(value);
+    }
+    outputMessage = outputMessage.set("value", value);
+    return outputMessage.toJS();
+};
 var AnonKafkaMirror = (function () {
     function AnonKafkaMirror(config) {
         this.config = undefined;
@@ -105,55 +148,12 @@ var AnonKafkaMirror = (function () {
         this.stream
             .from(config.topic.name)
             .mapJSONConvenience()
-            .map(this.mapMessage)
+            .map(function (m) { return exports.mapMessage(config, m); })
             .tap(function (message) {
             config.producer.logger.debug(message, "Transformed message");
         })
             .to();
     }
-    AnonKafkaMirror.prototype.mapMessage = function (m) {
-        var inputMessage = immutable_1.fromJS(m);
-        this.config.consumer.logger.debug(inputMessage.toJS(), "Got message");
-        var outputMessage = immutable_1.Map();
-        outputMessage = outputMessage.set("offset", inputMessage.get("offset"));
-        outputMessage = outputMessage.set("partition", inputMessage.get("partition"));
-        outputMessage = outputMessage.set("timestamp", inputMessage.get("timestamp"));
-        outputMessage = outputMessage.set("topic", this.config.topic.newName || inputMessage.get("topic"));
-        if (this.config.topic.key && this.config.topic.key.proxy === false) {
-            if (this.config.topic.key.format) {
-                var newKey = faker.fake("{{" + this.config.topic.key.format + "}}");
-                if (newKey) {
-                    outputMessage = outputMessage.set("key", newKey);
-                }
-            }
-        }
-        if (this.config.topic.key && this.config.topic.key.proxy) {
-            outputMessage = outputMessage.set("key", inputMessage.get("key"));
-        }
-        if (!outputMessage.get("key")) {
-            outputMessage = outputMessage.set("key", null);
-        }
-        if (!inputMessage.get("value") || typeof inputMessage.get("value") !== "object") {
-            outputMessage = outputMessage.set("value", inputMessage.get("value"));
-            return outputMessage.toJS();
-        }
-        if (this.config.topic.proxy && this.config.topic.proxy instanceof Array) {
-            this.config.topic.proxy.forEach(function (key) {
-                outputMessage = parseByKey("value." + key, outputMessage, inputMessage);
-            });
-        }
-        if (this.config.topic.alter && this.config.topic.alter instanceof Array) {
-            this.config.topic.alter.forEach(function (key) {
-                outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format);
-            });
-        }
-        var value = outputMessage.get("value");
-        if (value && typeof value === "object") {
-            value = JSON.stringify(value);
-        }
-        outputMessage = outputMessage.set("value", value);
-        return outputMessage.toJS();
-    };
     AnonKafkaMirror.prototype.run = function () {
         this.stream.start({ outputKafkaConfig: this.config.producer });
     };
