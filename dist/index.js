@@ -94,7 +94,7 @@ if (commanderProgram.dryRun) {
             var inputJSON = inputChunks_1.join();
             var parsedData = JSON.parse(inputJSON);
             var mappedJSON = mirror.mapMessage(parsedData);
-            var outputJSON = JSON.stringify(mappedJSON, null, 4);
+            var outputJSON = JSON.stringify(mappedJSON, null, "    ");
             stdout_1.write(outputJSON);
             stdout_1.write("\n");
         }

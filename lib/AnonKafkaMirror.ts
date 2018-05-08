@@ -1,6 +1,6 @@
 "use strict";
 
-import faker from "faker";
+import * as faker from "faker";
 import { fromJS, List, Map } from "immutable";
 import KafkaStreams from "kafka-streams";
 import { LoggerOptions, Logger } from "pino";
@@ -61,7 +61,7 @@ const splitPath = (path: string) => {
     });
 };
 
-const parseArrayByKey = (key: string, map, s: string = "", inputMessage) => {
+const parseArrayByKey = (key: string, map: Map<string, any>, s: string = "", inputMessage: Map<string, any>, format?: string) => {
     const keyPathMatch = key.match(arrayMatch);
     const prefix = keyPathMatch[1];
     const suffix = s || keyPathMatch[3];
@@ -76,24 +76,30 @@ const parseArrayByKey = (key: string, map, s: string = "", inputMessage) => {
                 let newListPath = prefixPath.concat([newListIndex]);
                 const prefixValue = inputMessage.getIn(keyPath);
                 if (List.isList(prefixValue)) {
-                    map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage);
+                    map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage, format);
                 } else {
                     if (suffix) {
                         keyPath = keyPath.concat(splitPath(suffix));
                         newListPath = newListPath.concat(splitPath(suffix));
                     }
-                    const keyValue = inputMessage.getIn(keyPath);
+                    let keyValue = inputMessage.getIn(keyPath);
                     if (keyValue === null) {
                         map = map.setIn(newListPath, null);
                         newListIndex += 1;
                     } else if (keyValue !== undefined) {
                         if (Map.isMap(keyValue)) {
-                            const mapValue = keyValue.getIn(splitPath(suffix));
+                            let mapValue = keyValue.getIn(splitPath(suffix));
+                            if (format) {
+                                mapValue = faker.fake(`{{${format}}}`);
+                            }
                             if (mapValue !== undefined) {
-                                map = map.setIn(newListPath, mapValue); // TODO make it recursive
+                                map = map.setIn(newListPath, mapValue);
                                 newListIndex += 1;
                             }
                         } else {
+                            if (format) {
+                                keyValue = faker.fake(`{{${format}}}`);
+                            } 
                             map = map.setIn(newListPath, keyValue);
                             newListIndex += 1;
                         }
@@ -105,18 +111,21 @@ const parseArrayByKey = (key: string, map, s: string = "", inputMessage) => {
     return map;
 };
 
-const parseByKey = (key: string, map, inputMessage) => {
+const parseByKey = (key: string, map: Map<string, any>, inputMessage: Map<string, any>, format?: string) => {
     if (key && typeof key === "string") {
         if (!key.match(arrayMatch)[2]) {
             const keyPath = splitPath(key);
-            const keyValue = inputMessage.getIn(keyPath);
+            let keyValue = inputMessage.getIn(keyPath);
             if (keyValue === null) {
                 map = map.setIn(keyPath, null);
             } else if (keyValue !== undefined) {
+                if (format) {
+                    keyValue = faker.fake(`{{${format}}}`);
+                }
                 map = map.setIn(keyPath, keyValue);
             }
         } else {
-            map = parseArrayByKey(key, map, undefined, inputMessage);
+            map = parseArrayByKey(key, map, undefined, inputMessage, format);
         }
     }
     return map;
@@ -143,7 +152,7 @@ export class AnonKafkaMirror {
     public mapMessage(m) {
         const inputMessage = fromJS(m);
         this.config.consumer.logger.debug(inputMessage.toJS(), "Got message");
-        let outputMessage = Map();
+        let outputMessage = Map<string, any>();
         outputMessage = outputMessage.set("offset", inputMessage.get("offset"));
         outputMessage = outputMessage.set("partition", inputMessage.get("partition"));
         outputMessage = outputMessage.set("timestamp", inputMessage.get("timestamp"));
@@ -177,15 +186,7 @@ export class AnonKafkaMirror {
 
         if (this.config.topic.alter && this.config.topic.alter instanceof Array) {
             this.config.topic.alter.forEach((key) => {
-                if (key && key.name && key.type) {
-                    const keyPath = splitPath(`value.${key.name}`);
-                    const keyValue = inputMessage.getIn(keyPath);
-                    if (keyValue === null) {
-                        outputMessage = outputMessage.setIn(keyPath, null);
-                    } else if (keyValue !== undefined && key.format) {
-                        outputMessage = outputMessage.setIn(keyPath, faker.fake(`{{${key.format}}}`));
-                    }
-                }
+                outputMessage = parseByKey(`value.${key.name}`, outputMessage, inputMessage, key.format);
             });
         }
         let value = outputMessage.get("value");

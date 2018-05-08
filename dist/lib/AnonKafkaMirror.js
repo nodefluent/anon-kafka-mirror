@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var faker_1 = require("faker");
+var faker = require("faker");
 var immutable_1 = require("immutable");
 var kafka_streams_1 = require("kafka-streams");
 exports.arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
@@ -21,7 +21,7 @@ var splitPath = function (path) {
         }
     });
 };
-var parseArrayByKey = function (key, map, s, inputMessage) {
+var parseArrayByKey = function (key, map, s, inputMessage, format) {
     if (s === void 0) { s = ""; }
     var keyPathMatch = key.match(exports.arrayMatch);
     var prefix = keyPathMatch[1];
@@ -37,7 +37,7 @@ var parseArrayByKey = function (key, map, s, inputMessage) {
                 var newListPath = prefixPath_1.concat([newListIndex_1]);
                 var prefixValue = inputMessage.getIn(keyPath);
                 if (immutable_1.List.isList(prefixValue)) {
-                    map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage);
+                    map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage, format);
                 }
                 else {
                     if (suffix) {
@@ -52,12 +52,18 @@ var parseArrayByKey = function (key, map, s, inputMessage) {
                     else if (keyValue !== undefined) {
                         if (immutable_1.Map.isMap(keyValue)) {
                             var mapValue = keyValue.getIn(splitPath(suffix));
+                            if (format) {
+                                mapValue = faker.fake("{{" + format + "}}");
+                            }
                             if (mapValue !== undefined) {
                                 map = map.setIn(newListPath, mapValue);
                                 newListIndex_1 += 1;
                             }
                         }
                         else {
+                            if (format) {
+                                keyValue = faker.fake("{{" + format + "}}");
+                            }
                             map = map.setIn(newListPath, keyValue);
                             newListIndex_1 += 1;
                         }
@@ -68,7 +74,7 @@ var parseArrayByKey = function (key, map, s, inputMessage) {
     }
     return map;
 };
-var parseByKey = function (key, map, inputMessage) {
+var parseByKey = function (key, map, inputMessage, format) {
     if (key && typeof key === "string") {
         if (!key.match(exports.arrayMatch)[2]) {
             var keyPath = splitPath(key);
@@ -77,11 +83,14 @@ var parseByKey = function (key, map, inputMessage) {
                 map = map.setIn(keyPath, null);
             }
             else if (keyValue !== undefined) {
+                if (format) {
+                    keyValue = faker.fake("{{" + format + "}}");
+                }
                 map = map.setIn(keyPath, keyValue);
             }
         }
         else {
-            map = parseArrayByKey(key, map, undefined, inputMessage);
+            map = parseArrayByKey(key, map, undefined, inputMessage, format);
         }
     }
     return map;
@@ -112,7 +121,7 @@ var AnonKafkaMirror = (function () {
         outputMessage = outputMessage.set("topic", this.config.topic.newName || inputMessage.get("topic"));
         if (this.config.topic.key && this.config.topic.key.proxy === false) {
             if (this.config.topic.key.format) {
-                var newKey = faker_1.default.fake("{{" + this.config.topic.key.format + "}}");
+                var newKey = faker.fake("{{" + this.config.topic.key.format + "}}");
                 if (newKey) {
                     outputMessage = outputMessage.set("key", newKey);
                 }
@@ -135,16 +144,7 @@ var AnonKafkaMirror = (function () {
         }
         if (this.config.topic.alter && this.config.topic.alter instanceof Array) {
             this.config.topic.alter.forEach(function (key) {
-                if (key && key.name && key.type) {
-                    var keyPath = splitPath("value." + key.name);
-                    var keyValue = inputMessage.getIn(keyPath);
-                    if (keyValue === null) {
-                        outputMessage = outputMessage.setIn(keyPath, null);
-                    }
-                    else if (keyValue !== undefined && key.format) {
-                        outputMessage = outputMessage.setIn(keyPath, faker_1.default.fake("{{" + key.format + "}}"));
-                    }
-                }
+                outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format);
             });
         }
         var value = outputMessage.get("value");

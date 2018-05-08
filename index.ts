@@ -106,7 +106,7 @@ if (commanderProgram.dryRun) {
             const inputJSON = inputChunks.join();
             const parsedData = JSON.parse(inputJSON);
             const mappedJSON = mirror.mapMessage(parsedData);
-            const outputJSON = JSON.stringify(mappedJSON, null, 4);
+            const outputJSON = JSON.stringify(mappedJSON, null, "    ");
             stdout.write(outputJSON);
             stdout.write("\n");
         } catch (e) {

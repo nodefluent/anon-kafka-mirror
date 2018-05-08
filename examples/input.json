@@ -29,6 +29,21 @@
             "name": "number",
             "type": "integer",
             "format": "random.number"
+        }, 
+        {
+            "name": "x[*]x",
+            "type": "integer",
+            "format": "random.number"
+        },
+        {
+            "name": "y[*]",
+            "type": "integer",
+            "format": "random.number"
+        },
+        {
+            "name": "z[*][*]",
+            "type": "string",
+            "format": "random.uuid"
         }
     ]
 }
