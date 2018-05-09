@@ -61,9 +61,11 @@ export const splitPath = (path: string) => {
   });
 };
 
-export const fake = (format: string) => {
+export const fake = (format: string, type?: string) => {
   let value: string | number = faker.fake(`{{${format}}}`);
-  if (!isNaN(parseInt(value, 10))) {
+  if ((type === "number" || type === "integer") &&
+    typeof value === "string" &&
+    !isNaN(parseInt(value, 10))) {
     value = parseInt(value, 10);
   }
   return value;
@@ -75,6 +77,7 @@ const parseArrayByKey = (
   s: string = "",
   inputMessage: Map<string, any>,
   format?: string,
+  type?: string,
 ) => {
   const keyPathMatch = key.match(arrayMatch);
   const prefix = keyPathMatch[1];
@@ -90,7 +93,7 @@ const parseArrayByKey = (
         let newListPath = prefixPath.concat([newListIndex]);
         const prefixValue = inputMessage.getIn(keyPath);
         if (List.isList(prefixValue)) {
-          map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage, format);
+          map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage, format, type);
         } else {
           if (suffix) {
             keyPath = keyPath.concat(splitPath(suffix));
@@ -104,7 +107,7 @@ const parseArrayByKey = (
             if (Map.isMap(keyValue)) {
               let mapValue = keyValue.getIn(splitPath(suffix));
               if (format) {
-                mapValue = fake(format);
+                mapValue = fake(format, type);
               }
               if (mapValue !== undefined) {
                 map = map.setIn(newListPath, mapValue);
@@ -112,7 +115,7 @@ const parseArrayByKey = (
               }
             } else {
               if (format) {
-                keyValue = fake(format);
+                keyValue = fake(format, type);
               }
               map = map.setIn(newListPath, keyValue);
               newListIndex += 1;
@@ -125,7 +128,13 @@ const parseArrayByKey = (
   return map;
 };
 
-const parseByKey = (key: string, map: Map<string, any>, inputMessage: Map<string, any>, format?: string) => {
+const parseByKey = (
+  key: string,
+  map: Map<string, any>,
+  inputMessage: Map<string, any>,
+  format?: string,
+  type?: string,
+) => {
   if (key && typeof key === "string") {
     if (!key.match(arrayMatch)[2]) {
       const keyPath = splitPath(key);
@@ -134,12 +143,12 @@ const parseByKey = (key: string, map: Map<string, any>, inputMessage: Map<string
         map = map.setIn(keyPath, null);
       } else if (keyValue !== undefined) {
         if (format) {
-          keyValue = fake(format);
+          keyValue = fake(format, type);
         }
         map = map.setIn(keyPath, keyValue);
       }
     } else {
-      map = parseArrayByKey(key, map, undefined, inputMessage, format);
+      map = parseArrayByKey(key, map, undefined, inputMessage, format, type);
     }
   }
   return map;
@@ -166,7 +175,7 @@ export const mapMessage = (config: IConfig, m: any) => {
 
   if (config.topic.key && config.topic.key.proxy === false) {
     if (config.topic.key.format) {
-      const newKey = fake(config.topic.key.format);
+      const newKey = fake(config.topic.key.format, config.topic.key.type);
       if (newKey) {
         outputMessage = outputMessage.set("key", newKey);
       }
@@ -197,7 +206,7 @@ export const mapMessage = (config: IConfig, m: any) => {
 
   if (config.topic.alter && config.topic.alter instanceof Array) {
     config.topic.alter.forEach((key) => {
-      outputMessage = parseByKey(`value.${key.name}`, outputMessage, inputMessage, key.format);
+      outputMessage = parseByKey(`value.${key.name}`, outputMessage, inputMessage, key.format, key.type);
     });
   }
   let value = outputMessage.get("value");

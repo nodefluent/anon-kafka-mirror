@@ -21,14 +21,16 @@ exports.splitPath = function (path) {
         }
     });
 };
-exports.fake = function (format) {
+exports.fake = function (format, type) {
     var value = faker.fake("{{" + format + "}}");
-    if (!isNaN(parseInt(value, 10))) {
+    if ((type === "number" || type === "integer") &&
+        typeof value === "string" &&
+        !isNaN(parseInt(value, 10))) {
         value = parseInt(value, 10);
     }
     return value;
 };
-var parseArrayByKey = function (key, map, s, inputMessage, format) {
+var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
     if (s === void 0) { s = ""; }
     var keyPathMatch = key.match(exports.arrayMatch);
     var prefix = keyPathMatch[1];
@@ -44,7 +46,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format) {
                 var newListPath = prefixPath_1.concat([newListIndex_1]);
                 var prefixValue = inputMessage.getIn(keyPath);
                 if (immutable_1.List.isList(prefixValue)) {
-                    map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage, format);
+                    map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage, format, type);
                 }
                 else {
                     if (suffix) {
@@ -60,7 +62,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format) {
                         if (immutable_1.Map.isMap(keyValue)) {
                             var mapValue = keyValue.getIn(exports.splitPath(suffix));
                             if (format) {
-                                mapValue = exports.fake(format);
+                                mapValue = exports.fake(format, type);
                             }
                             if (mapValue !== undefined) {
                                 map = map.setIn(newListPath, mapValue);
@@ -69,7 +71,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format) {
                         }
                         else {
                             if (format) {
-                                keyValue = exports.fake(format);
+                                keyValue = exports.fake(format, type);
                             }
                             map = map.setIn(newListPath, keyValue);
                             newListIndex_1 += 1;
@@ -81,7 +83,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format) {
     }
     return map;
 };
-var parseByKey = function (key, map, inputMessage, format) {
+var parseByKey = function (key, map, inputMessage, format, type) {
     if (key && typeof key === "string") {
         if (!key.match(exports.arrayMatch)[2]) {
             var keyPath = exports.splitPath(key);
@@ -91,13 +93,13 @@ var parseByKey = function (key, map, inputMessage, format) {
             }
             else if (keyValue !== undefined) {
                 if (format) {
-                    keyValue = exports.fake(format);
+                    keyValue = exports.fake(format, type);
                 }
                 map = map.setIn(keyPath, keyValue);
             }
         }
         else {
-            map = parseArrayByKey(key, map, undefined, inputMessage, format);
+            map = parseArrayByKey(key, map, undefined, inputMessage, format, type);
         }
     }
     return map;
@@ -122,7 +124,7 @@ exports.mapMessage = function (config, m) {
     }
     if (config.topic.key && config.topic.key.proxy === false) {
         if (config.topic.key.format) {
-            var newKey = exports.fake(config.topic.key.format);
+            var newKey = exports.fake(config.topic.key.format, config.topic.key.type);
             if (newKey) {
                 outputMessage = outputMessage.set("key", newKey);
             }
@@ -150,7 +152,7 @@ exports.mapMessage = function (config, m) {
     }
     if (config.topic.alter && config.topic.alter instanceof Array) {
         config.topic.alter.forEach(function (key) {
-            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format);
+            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type);
         });
     }
     var value = outputMessage.get("value");

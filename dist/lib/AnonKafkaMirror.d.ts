@@ -37,7 +37,7 @@ export interface IConfig {
 }
 export declare const arrayMatch: RegExp;
 export declare const splitPath: (path: string) => (string | number)[];
-export declare const fake: (format: string) => string | number;
+export declare const fake: (format: string, type?: string) => string | number;
 export declare const mapMessage: (config: IConfig, m: any) => any;
 export declare class AnonKafkaMirror {
     config: IConfig;
