@@ -4,7 +4,7 @@ var faker = require("faker");
 var immutable_1 = require("immutable");
 var kafka_streams_1 = require("kafka-streams");
 exports.arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
-var splitPath = function (path) {
+exports.splitPath = function (path) {
     if (!path) {
         return [];
     }
@@ -21,13 +21,20 @@ var splitPath = function (path) {
         }
     });
 };
+exports.fake = function (format) {
+    var value = faker.fake("{{" + format + "}}");
+    if (!isNaN(parseInt(value, 10))) {
+        value = parseInt(value, 10);
+    }
+    return value;
+};
 var parseArrayByKey = function (key, map, s, inputMessage, format) {
     if (s === void 0) { s = ""; }
     var keyPathMatch = key.match(exports.arrayMatch);
     var prefix = keyPathMatch[1];
     var suffix = s || keyPathMatch[3];
     if (prefix) {
-        var prefixPath_1 = splitPath(prefix);
+        var prefixPath_1 = exports.splitPath(prefix);
         var keyArray = inputMessage.getIn(prefixPath_1);
         if (immutable_1.List.isList(keyArray)) {
             map = map.setIn(prefixPath_1, immutable_1.List());
@@ -41,8 +48,8 @@ var parseArrayByKey = function (key, map, s, inputMessage, format) {
                 }
                 else {
                     if (suffix) {
-                        keyPath = keyPath.concat(splitPath(suffix));
-                        newListPath = newListPath.concat(splitPath(suffix));
+                        keyPath = keyPath.concat(exports.splitPath(suffix));
+                        newListPath = newListPath.concat(exports.splitPath(suffix));
                     }
                     var keyValue = inputMessage.getIn(keyPath);
                     if (keyValue === null) {
@@ -51,9 +58,9 @@ var parseArrayByKey = function (key, map, s, inputMessage, format) {
                     }
                     else if (keyValue !== undefined) {
                         if (immutable_1.Map.isMap(keyValue)) {
-                            var mapValue = keyValue.getIn(splitPath(suffix));
+                            var mapValue = keyValue.getIn(exports.splitPath(suffix));
                             if (format) {
-                                mapValue = faker.fake("{{" + format + "}}");
+                                mapValue = exports.fake(format);
                             }
                             if (mapValue !== undefined) {
                                 map = map.setIn(newListPath, mapValue);
@@ -62,7 +69,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format) {
                         }
                         else {
                             if (format) {
-                                keyValue = faker.fake("{{" + format + "}}");
+                                keyValue = exports.fake(format);
                             }
                             map = map.setIn(newListPath, keyValue);
                             newListIndex_1 += 1;
@@ -77,14 +84,14 @@ var parseArrayByKey = function (key, map, s, inputMessage, format) {
 var parseByKey = function (key, map, inputMessage, format) {
     if (key && typeof key === "string") {
         if (!key.match(exports.arrayMatch)[2]) {
-            var keyPath = splitPath(key);
+            var keyPath = exports.splitPath(key);
             var keyValue = inputMessage.getIn(keyPath);
             if (keyValue === null) {
                 map = map.setIn(keyPath, null);
             }
             else if (keyValue !== undefined) {
                 if (format) {
-                    keyValue = faker.fake("{{" + format + "}}");
+                    keyValue = exports.fake(format);
                 }
                 map = map.setIn(keyPath, keyValue);
             }
@@ -97,15 +104,25 @@ var parseByKey = function (key, map, inputMessage, format) {
 };
 exports.mapMessage = function (config, m) {
     var inputMessage = immutable_1.fromJS(m);
-    config.consumer.logger.debug(inputMessage.toJS(), "Got message");
+    if (config.consumer && config.consumer.logger && config.consumer.logger.debug) {
+        config.consumer.logger.debug(inputMessage.toJS(), "Got message");
+    }
     var outputMessage = immutable_1.Map();
-    outputMessage = outputMessage.set("offset", inputMessage.get("offset"));
-    outputMessage = outputMessage.set("partition", inputMessage.get("partition"));
-    outputMessage = outputMessage.set("timestamp", inputMessage.get("timestamp"));
-    outputMessage = outputMessage.set("topic", config.topic.newName || inputMessage.get("topic"));
+    if (inputMessage.get("offset")) {
+        outputMessage = outputMessage.set("offset", inputMessage.get("offset"));
+    }
+    if (inputMessage.get("partition")) {
+        outputMessage = outputMessage.set("partition", inputMessage.get("partition"));
+    }
+    if (inputMessage.get("timestamp")) {
+        outputMessage = outputMessage.set("timestamp", inputMessage.get("timestamp"));
+    }
+    if (config.topic.newName || inputMessage.get("topic")) {
+        outputMessage = outputMessage.set("topic", config.topic.newName || inputMessage.get("topic"));
+    }
     if (config.topic.key && config.topic.key.proxy === false) {
         if (config.topic.key.format) {
-            var newKey = faker.fake("{{" + config.topic.key.format + "}}");
+            var newKey = exports.fake(config.topic.key.format);
             if (newKey) {
                 outputMessage = outputMessage.set("key", newKey);
             }
@@ -118,7 +135,12 @@ exports.mapMessage = function (config, m) {
         outputMessage = outputMessage.set("key", null);
     }
     if (!inputMessage.get("value") || typeof inputMessage.get("value") !== "object") {
-        outputMessage = outputMessage.set("value", inputMessage.get("value"));
+        var v = inputMessage.get("value") === undefined ? null : inputMessage.get("value");
+        outputMessage = outputMessage.set("value", v);
+        return outputMessage.toJS();
+    }
+    if (inputMessage.get("value").size === 0) {
+        outputMessage = outputMessage.set("value", "{}");
         return outputMessage.toJS();
     }
     if (config.topic.proxy && config.topic.proxy instanceof Array) {
@@ -132,8 +154,14 @@ exports.mapMessage = function (config, m) {
         });
     }
     var value = outputMessage.get("value");
-    if (value && typeof value === "object") {
+    if (!value && inputMessage.get("value").size) {
+        value = "{}";
+    }
+    else if (typeof value === "object") {
         value = JSON.stringify(value);
+    }
+    else {
+        value = null;
     }
     outputMessage = outputMessage.set("value", value);
     return outputMessage.toJS();
@@ -150,7 +178,9 @@ var AnonKafkaMirror = (function () {
             .mapJSONConvenience()
             .map(function (m) { return exports.mapMessage(config, m); })
             .tap(function (message) {
-            config.producer.logger.debug(message, "Transformed message");
+            if (config.consumer.logger && config.consumer.logger.debug) {
+                config.producer.logger.debug(message, "Transformed message");
+            }
         })
             .to();
     }
