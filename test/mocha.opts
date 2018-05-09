@@ -1,0 +1,8 @@
+lib/**/*.test.ts
+--require ts-node/register
+--require source-map-support/register
+--reporter spec
+--recursive
+--timeout 10000
+--exit
+--watch-extensions ts

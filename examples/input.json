@@ -5,8 +5,6 @@
         "type": "string"
     },
     "proxy": [
-        "bla.blup",
-        "abc",
         "test",
         "a[*]",
         "b[*]c",
@@ -29,7 +27,7 @@
             "name": "number",
             "type": "integer",
             "format": "random.number"
-        }, 
+        },
         {
             "name": "x[*]x",
             "type": "integer",

@@ -1,4 +1,4 @@
-import { LoggerOptions, Logger } from "pino";
+import { Logger, LoggerOptions } from "pino";
 export interface IConfig {
     logger?: LoggerOptions;
     consumer: {

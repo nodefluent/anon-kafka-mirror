@@ -9,8 +9,10 @@ import config from "./lib/config/default";
 let localConfig = config;
 
 commanderProgram
-    .option("-b, --consumer-broker-list [string]", "The broker list string to consumer in the form HOST1:PORT1,HOST2:PORT2.")
-    .option("-p, --producer-broker-list [string]", "The broker list string to produce in the form HOST1:PORT1,HOST2:PORT2.")
+    .option("-b, --consumer-broker-list [string]",
+        "The broker list string to consumer in the form HOST1:PORT1,HOST2:PORT2.")
+    .option("-p, --producer-broker-list [string]",
+        "The broker list string to produce in the form HOST1:PORT1,HOST2:PORT2.")
     .option("-t, --consumer-topic [string]", "Kafka topic to consume.")
     .option("-n, --producer-topic [string]", "Kafka topic to produce.")
     .option("-g, --consumer-group [string]", "Kafka consumer group.")
