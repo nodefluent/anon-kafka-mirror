@@ -3,7 +3,7 @@
 import * as faker from "faker";
 import { fromJS, List, Map } from "immutable";
 import KafkaStreams from "kafka-streams";
-import { LoggerOptions, Logger } from "pino";
+import { Logger, LoggerOptions } from "pino";
 
 export interface IConfig {
     logger?: LoggerOptions;
@@ -61,7 +61,13 @@ const splitPath = (path: string) => {
     });
 };
 
-const parseArrayByKey = (key: string, map: Map<string, any>, s: string = "", inputMessage: Map<string, any>, format?: string) => {
+const parseArrayByKey = (
+    key: string,
+    map: Map<string, any>,
+    s: string = "",
+    inputMessage: Map<string, any>,
+    format?: string,
+) => {
     const keyPathMatch = key.match(arrayMatch);
     const prefix = keyPathMatch[1];
     const suffix = s || keyPathMatch[3];
@@ -99,7 +105,7 @@ const parseArrayByKey = (key: string, map: Map<string, any>, s: string = "", inp
                         } else {
                             if (format) {
                                 keyValue = faker.fake(`{{${format}}}`);
-                            } 
+                            }
                             map = map.setIn(newListPath, keyValue);
                             newListIndex += 1;
                         }
@@ -177,10 +183,10 @@ export const mapMessage = (config: IConfig, m: any) => {
     }
     outputMessage = outputMessage.set("value", value);
     return outputMessage.toJS();
-}
+};
 
 export class AnonKafkaMirror {
-    config: IConfig = undefined;
+    public config: IConfig = undefined;
     private stream: any = {};
     constructor(config: IConfig) {
         this.config = config;
@@ -190,7 +196,7 @@ export class AnonKafkaMirror {
         this.stream
             .from(config.topic.name)
             .mapJSONConvenience()
-            .map((m)=> mapMessage(config, m))
+            .map((m) => mapMessage(config, m))
             .tap((message) => {
                 config.producer.logger.debug(message, "Transformed message");
             })
