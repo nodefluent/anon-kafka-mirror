@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var faker = require("faker");
 var immutable_1 = require("immutable");
 var kafka_streams_1 = require("kafka-streams");
+var murmurhash = require("murmurhash");
 exports.arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
 exports.splitPath = function (path) {
     if (!path) {
@@ -22,6 +23,9 @@ exports.splitPath = function (path) {
     });
 };
 exports.fake = function (format, type) {
+    if (format === "hashed.uuid") {
+        return;
+    }
     var value = faker.fake("{{" + format + "}}");
     if ((type === "number" || type === "integer") &&
         typeof value === "string" &&
@@ -93,7 +97,12 @@ var parseByKey = function (key, map, inputMessage, format, type) {
             }
             else if (keyValue !== undefined) {
                 if (format) {
-                    keyValue = exports.fake(format, type);
+                    if (format === "hashed.uuid") {
+                        keyValue = hashUUID(keyValue);
+                    }
+                    else {
+                        keyValue = exports.fake(format, type);
+                    }
                 }
                 map = map.setIn(keyPath, keyValue);
             }
@@ -103,6 +112,17 @@ var parseByKey = function (key, map, inputMessage, format, type) {
         }
     }
     return map;
+};
+var isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/, "i");
+var hashUUID = function (uuid) {
+    if (!isUUIDRegExp.test(uuid)) {
+        return uuid;
+    }
+    var firstPart = uuid.substr(0, 6);
+    var hashedfirstPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
+    var lastPart = uuid.substr(-6, 6);
+    var hashedlastPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
+    return uuid.replace(firstPart, hashedfirstPart).replace(lastPart, hashedlastPart);
 };
 exports.mapMessage = function (config, m) {
     var inputMessage = immutable_1.fromJS(m);

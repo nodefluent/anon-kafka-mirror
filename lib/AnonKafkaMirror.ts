@@ -3,6 +3,7 @@
 import * as faker from "faker";
 import { fromJS, List, Map } from "immutable";
 import KafkaStreams from "kafka-streams";
+import * as murmurhash from "murmurhash";
 import { Logger, LoggerOptions } from "pino";
 
 export interface IConfig {
@@ -62,6 +63,9 @@ export const splitPath = (path: string) => {
 };
 
 export const fake = (format: string, type?: string) => {
+  if (format === "hashed.uuid") {
+    return;
+  }
   let value: string | number = faker.fake(`{{${format}}}`);
   if ((type === "number" || type === "integer") &&
     typeof value === "string" &&
@@ -143,7 +147,11 @@ const parseByKey = (
         map = map.setIn(keyPath, null);
       } else if (keyValue !== undefined) {
         if (format) {
-          keyValue = fake(format, type);
+          if (format === "hashed.uuid") {
+            keyValue = hashUUID(keyValue);
+          } else {
+            keyValue = fake(format, type);
+          }
         }
         map = map.setIn(keyPath, keyValue);
       }
@@ -152,6 +160,19 @@ const parseByKey = (
     }
   }
   return map;
+};
+const isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/, "i");
+const hashUUID = (uuid: string): string => {
+  if (!isUUIDRegExp.test(uuid)) {
+    return uuid;
+  }
+
+  const firstPart = uuid.substr(0, 6);
+  const hashedfirstPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
+  const lastPart = uuid.substr(-6, 6);
+  const hashedlastPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
+
+  return uuid.replace(firstPart, hashedfirstPart).replace(lastPart, hashedlastPart);
 };
 
 export const mapMessage = (config: IConfig, m: any) => {
@@ -181,9 +202,11 @@ export const mapMessage = (config: IConfig, m: any) => {
       }
     }
   }
+
   if (config.topic.key && config.topic.key.proxy) {
     outputMessage = outputMessage.set("key", inputMessage.get("key"));
   }
+
   if (!outputMessage.get("key")) {
     outputMessage = outputMessage.set("key", null);
   }

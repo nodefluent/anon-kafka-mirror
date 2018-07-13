@@ -82,22 +82,24 @@ describe("AnonKafkaMirror", function () {
                     proxy: [
                         "test",
                         "a[*]",
-                        "b[*]c",
+                        "b[*].c",
                         "c[*][*]",
                         "d[*][*].e",
                         "f[*].g[*]",
                     ],
                 },
             };
-            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, {})).to.be.deep.equal({ key: null, value: null });
-            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: "" })).to.be.deep.equal({ key: null, value: "" });
-            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: null })).to.be.deep.equal({ key: null, value: null });
-            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: {} })).to.be.deep.equal({ key: null, value: "{}" });
-            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: { a: 1 } })).to.be.deep.equal({ key: null, value: "{}" });
-            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: { test: 1 } })).to.be.deep.equal({ key: null, value: "{\"test\":1}" });
-            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: { a: [1, 2, 3] } })).to.be.deep.equal({ key: null, value: "{\"a\":[1,2,3]}" });
+            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, {})).to.deep.equal({ key: null, value: null });
+            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: "" })).to.deep.equal({ key: null, value: "" });
+            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: null })).to.deep.equal({ key: null, value: null });
+            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: {} })).to.deep.equal({ key: null, value: "{}" });
+            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: { a: 1 } })).to.deep.equal({ key: null, value: "{}" });
+            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: { test: 1 } })).to.deep.equal({ key: null, value: "{\"test\":1}" });
+            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: { a: [1, 2, 3] } })).to.deep.equal({ key: null, value: "{\"a\":[1,2,3]}" });
+            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: { b: [{ c: 1 }] } }))
+                .to.deep.equal({ key: null, value: "{\"b\":[{\"c\":1}]}" });
             chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { value: { c: [[1], [2, 3]] } }))
-                .to.be.deep.equal({ key: null, value: "{\"c\":[[1],[2,3]]}" });
+                .to.deep.equal({ key: null, value: "{\"c\":[[1],[2,3]]}" });
         });
         it("should map message with y[*]", function () {
             var config = {
@@ -158,6 +160,22 @@ describe("AnonKafkaMirror", function () {
             chai_1.expect(value.a).to.be.not.ok;
             chai_1.expect(value.b).to.be.not.ok;
         });
+    });
+    it("should map message with hashed.uuid", function () {
+        var config = {
+            topic: {
+                alter: [
+                    {
+                        name: "someUUID",
+                        type: "string",
+                        format: "hashed.uuid",
+                    },
+                ],
+            },
+        };
+        var outputMessage = AnonKafkaMirror_1.mapMessage(config, { value: { someUUID: "fd8acd65-a3d4-4a7f-b4c5-7f0099052884" } });
+        var hashedUUID = JSON.parse(outputMessage.value).someUUID;
+        chai_1.expect(hashedUUID).to.equal("27364565-a3d4-4a7f-b4c5-7f0099273645");
     });
 });
 //# sourceMappingURL=AnonKafkaMirror.test.js.map

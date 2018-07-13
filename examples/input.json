@@ -7,7 +7,7 @@
     "proxy": [
         "test",
         "a[*]",
-        "b[*]c",
+        "b[*].c",
         "c[*][*]",
         "d[*][*].e",
         "f[*].g[*]"
@@ -17,6 +17,11 @@
             "name": "id",
             "type": "string",
             "format": "random.uuid"
+        },
+        {
+            "name": "someUUID",
+            "type": "string",
+            "format": "hashed.uuid"
         },
         {
             "name": "mail",
@@ -29,7 +34,7 @@
             "format": "random.number"
         },
         {
-            "name": "x[*]x",
+            "name": "x[*].x",
             "type": "integer",
             "format": "random.number"
         },

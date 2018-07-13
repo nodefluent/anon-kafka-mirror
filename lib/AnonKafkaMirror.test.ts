@@ -68,7 +68,7 @@ describe("AnonKafkaMirror", () => {
 
   describe(`mapMessage:${typeof mapMessage}`, () => {
     it("should proxy key based on the config", () => {
-      expect(mapMessage({topic: {}} as IConfig, {key: null})).to.be.deep.equal({ key: null, value: null });
+      expect(mapMessage({ topic: {} } as IConfig, { key: null })).to.be.deep.equal({ key: null, value: null });
       expect(mapMessage({
         topic: {
           key: {
@@ -93,22 +93,24 @@ describe("AnonKafkaMirror", () => {
           proxy: [
             "test",
             "a[*]",
-            "b[*]c",
+            "b[*].c",
             "c[*][*]",
             "d[*][*].e",
             "f[*].g[*]",
           ],
         },
       } as IConfig;
-      expect(mapMessage(config, {})).to.be.deep.equal({key: null, value: null});
-      expect(mapMessage(config, {value: ""})).to.be.deep.equal({ key: null, value: "" });
-      expect(mapMessage(config, { value: null })).to.be.deep.equal({ key: null, value: null });
-      expect(mapMessage(config, { value: {} })).to.be.deep.equal({ key: null, value: "{}" });
-      expect(mapMessage(config, { value: { a: 1} })).to.be.deep.equal({ key: null, value: "{}" });
-      expect(mapMessage(config, { value: { test: 1 } })).to.be.deep.equal({ key: null, value: "{\"test\":1}" });
-      expect(mapMessage(config, { value: { a: [1, 2, 3] } })).to.be.deep.equal({ key: null, value: "{\"a\":[1,2,3]}" });
+      expect(mapMessage(config, {})).to.deep.equal({ key: null, value: null });
+      expect(mapMessage(config, { value: "" })).to.deep.equal({ key: null, value: "" });
+      expect(mapMessage(config, { value: null })).to.deep.equal({ key: null, value: null });
+      expect(mapMessage(config, { value: {} })).to.deep.equal({ key: null, value: "{}" });
+      expect(mapMessage(config, { value: { a: 1 } })).to.deep.equal({ key: null, value: "{}" });
+      expect(mapMessage(config, { value: { test: 1 } })).to.deep.equal({ key: null, value: "{\"test\":1}" });
+      expect(mapMessage(config, { value: { a: [1, 2, 3] } })).to.deep.equal({ key: null, value: "{\"a\":[1,2,3]}" });
+      expect(mapMessage(config, { value: { b: [{ c: 1 }] } }))
+        .to.deep.equal({ key: null, value: "{\"b\":[{\"c\":1}]}" });
       expect(mapMessage(config, { value: { c: [[1], [2, 3]] } }))
-        .to.be.deep.equal({ key: null, value: "{\"c\":[[1],[2,3]]}" });
+        .to.deep.equal({ key: null, value: "{\"c\":[[1],[2,3]]}" });
     });
 
     it("should map message with y[*]", () => {
@@ -143,7 +145,7 @@ describe("AnonKafkaMirror", () => {
           ],
         },
       } as IConfig;
-      const outputMessage = mapMessage(config, { value: { x: [{x: 1}, {a: 1}, {b: ""}] } });
+      const outputMessage = mapMessage(config, { value: { x: [{ x: 1 }, { a: 1 }, { b: "" }] } });
       expect(outputMessage.key).to.be.equal(null);
       const value = JSON.parse(outputMessage.value);
       expect(value.x.length).to.be.equal(1);
@@ -164,7 +166,7 @@ describe("AnonKafkaMirror", () => {
           ],
         },
       } as IConfig;
-      const outputMessage = mapMessage(config, { value: { z: [["a", "b"], ["c"]], a: 1, b: {c: 2} } });
+      const outputMessage = mapMessage(config, { value: { z: [["a", "b"], ["c"]], a: 1, b: { c: 2 } } });
       expect(outputMessage.key).to.be.equal(null);
       const value = JSON.parse(outputMessage.value);
       expect(value.z.length).to.be.equal(2);
@@ -172,5 +174,22 @@ describe("AnonKafkaMirror", () => {
       expect(value.a).to.be.not.ok;
       expect(value.b).to.be.not.ok;
     });
+  });
+
+  it("should map message with hashed.uuid", () => {
+    const config = {
+      topic: {
+        alter: [
+          {
+            name: "someUUID",
+            type: "string",
+            format: "hashed.uuid",
+          },
+        ],
+      },
+    } as IConfig;
+    const outputMessage = mapMessage(config, { value: { someUUID: "fd8acd65-a3d4-4a7f-b4c5-7f0099052884" } });
+    const hashedUUID = JSON.parse(outputMessage.value).someUUID;
+    expect(hashedUUID).to.equal("27364565-a3d4-4a7f-b4c5-7f0099273645");
   });
 });
