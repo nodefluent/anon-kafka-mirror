@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import * as commanderProgram from "commander";
-import { existsSync, readFileSync} from "fs";
-import {resolve} from "path";
+import { existsSync, readFileSync } from "fs";
+import { resolve } from "path";
 import * as pino from "pino";
 import { AnonKafkaMirror, mapMessage } from "./lib/AnonKafkaMirror";
 import config from "./lib/config/default";
@@ -24,8 +24,8 @@ commanderProgram
 
 if (commanderProgram.configFile && existsSync(commanderProgram.configFile)) {
     try {
-        const data = readFileSync(resolve(commanderProgram.configFile));
-        localConfig = JSON.parse(data.toString());
+        // tslint:disable-next-line
+        localConfig = require(resolve(commanderProgram.configFile)) as any;
     } catch (e) {
         console.error("Could not read config file", e);
     }
@@ -88,8 +88,8 @@ if (localConfig.logger) {
         localConfig.logger.level = commanderProgram.loglevel;
     }
     const logger = pino(localConfig.logger);
-    localConfig.consumer.logger = logger.child({stream: "consumer"});
-    localConfig.producer.logger = logger.child({stream: "producer"});
+    localConfig.consumer.logger = logger.child({ stream: "consumer" });
+    localConfig.producer.logger = logger.child({ stream: "producer" });
 }
 
 const mirror = new AnonKafkaMirror(localConfig);

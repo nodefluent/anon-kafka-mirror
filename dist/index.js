@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 "use strict";
-Object.defineProperty(exports, "__esModule", {value: true});
+Object.defineProperty(exports, "__esModule", { value: true });
 var commanderProgram = require("commander");
 var fs_1 = require("fs");
 var path_1 = require("path");
@@ -21,7 +21,7 @@ commanderProgram
     .parse(process.argv);
 if (commanderProgram.configFile && fs_1.existsSync(commanderProgram.configFile)) {
     try {
-        localConfig = fs_1.readFileSync(path_1.resolve(commanderProgram.configFile));
+        localConfig = require(path_1.resolve(commanderProgram.configFile));
     }
     catch (e) {
         console.error("Could not read config file", e);
@@ -75,8 +75,8 @@ if (localConfig.logger) {
         localConfig.logger.level = commanderProgram.loglevel;
     }
     var logger = pino(localConfig.logger);
-    localConfig.consumer.logger = logger.child({stream: "consumer"});
-    localConfig.producer.logger = logger.child({stream: "producer"});
+    localConfig.consumer.logger = logger.child({ stream: "consumer" });
+    localConfig.producer.logger = logger.child({ stream: "producer" });
 }
 var mirror = new AnonKafkaMirror_1.AnonKafkaMirror(localConfig);
 if (commanderProgram.dryRun) {
