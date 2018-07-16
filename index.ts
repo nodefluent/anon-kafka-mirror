@@ -44,6 +44,7 @@ if (!localConfig.topic ||
     !localConfig.consumer || !localConfig.consumer.noptions ||
     !localConfig.producer || !localConfig.producer.noptions) {
     console.error("Config file does not contains topic, consumer or producer configurations.");
+    console.error("Config:", localConfig);
     commanderProgram.help();
 }
 
