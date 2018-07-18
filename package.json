@@ -40,7 +40,7 @@
     "commander": "^2.14.1",
     "faker": "^4.1.0",
     "immutable": "^3.8.2",
-    "kafka-streams": "^4.1.0",
+    "kafka-streams": "^4.5.0",
     "murmurhash": "^0.0.2",
     "pino": "^4.16.1"
   },
