@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 
 import * as commanderProgram from "commander";
+import debug from "debug";
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import * as pino from "pino";
 import { AnonKafkaMirror, mapMessage } from "./lib/AnonKafkaMirror";
 import config from "./lib/config/default";
 let localConfig = config;
+
+const debugLogger = debug("anon-kafka-mirror:cli");
 
 commanderProgram
     .option("-b, --consumer-broker-list [string]",
@@ -23,6 +26,7 @@ commanderProgram
     .parse(process.argv);
 
 if (commanderProgram.configFile && existsSync(commanderProgram.configFile)) {
+    debugLogger("Got config file", commanderProgram.configFile);
     try {
         // tslint:disable-next-line
         localConfig = require(resolve(commanderProgram.configFile)) as any;
@@ -30,8 +34,10 @@ if (commanderProgram.configFile && existsSync(commanderProgram.configFile)) {
         console.error("Could not read config file", e);
     }
 }
+debugLogger("Loaded config file", localConfig);
 
 if (commanderProgram.topicConfigFile && existsSync(commanderProgram.topicConfigFile)) {
+    debugLogger("Got topic config file", commanderProgram.topicConfigFile);
     try {
         const data = readFileSync(resolve(commanderProgram.topicConfigFile));
         localConfig.topic = JSON.parse(data.toString());
@@ -39,6 +45,7 @@ if (commanderProgram.topicConfigFile && existsSync(commanderProgram.topicConfigF
         console.error("Could not read config file", e);
     }
 }
+debugLogger("Loaded topic config file", localConfig.topic);
 
 if (!localConfig.topic ||
     !localConfig.consumer || !localConfig.consumer.noptions ||
@@ -49,11 +56,13 @@ if (!localConfig.topic ||
 }
 
 if (commanderProgram.consumerGroup) {
+    debugLogger("Rewrite consumer group from arg", commanderProgram.consumerGroup);
     localConfig.consumer.noptions["group.id"] = commanderProgram.consumerGroup;
     localConfig.producer.noptions["group.id"] = commanderProgram.consumerGroup;
 }
 
 if (commanderProgram.consumerBrokerList) {
+    debugLogger("Rewrite consumer broker list from arg", commanderProgram.consumerBrokerList);
     localConfig.consumer.noptions["metadata.broker.list"] = commanderProgram.consumerBrokerList;
 }
 
@@ -63,6 +72,7 @@ if (!localConfig.consumer.noptions["metadata.broker.list"]) {
 }
 
 if (commanderProgram.producerBrokerList) {
+    debugLogger("Rewrite producer broker list from arg", commanderProgram.producerBrokerList);
     localConfig.producer.noptions["metadata.broker.list"] = commanderProgram.producerBrokerList;
 }
 
@@ -72,6 +82,7 @@ if (!localConfig.producer.noptions["metadata.broker.list"]) {
 }
 
 if (commanderProgram.consumerTopic) {
+    debugLogger("Rewrite consumer topic name from arg", commanderProgram.consumerTopic);
     localConfig.topic.name = commanderProgram.consumerTopic;
 }
 
@@ -81,6 +92,7 @@ if (!localConfig.topic.name) {
 }
 
 if (commanderProgram.producerTopic) {
+    debugLogger("Rewrite producer topic name from arg", commanderProgram.producerTopic);
     localConfig.topic.newName = commanderProgram.producerTopic;
 }
 
@@ -93,6 +105,7 @@ if (localConfig.logger) {
     localConfig.producer.logger = logger.child({ stream: "producer" });
 }
 
+debugLogger("Initialize with config", localConfig);
 const mirror = new AnonKafkaMirror(localConfig);
 
 if (commanderProgram.dryRun) {
@@ -118,5 +131,6 @@ if (commanderProgram.dryRun) {
         process.exit(0);
     });
 } else {
+    debugLogger("Start mirror");
     mirror.run();
 }

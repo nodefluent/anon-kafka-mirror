@@ -2,12 +2,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var commanderProgram = require("commander");
+var debug_1 = require("debug");
 var fs_1 = require("fs");
 var path_1 = require("path");
 var pino = require("pino");
 var AnonKafkaMirror_1 = require("./lib/AnonKafkaMirror");
 var default_1 = require("./lib/config/default");
 var localConfig = default_1.default;
+var debugLogger = debug_1.default("anon-kafka-mirror:cli");
 commanderProgram
     .option("-b, --consumer-broker-list [string]", "The broker list string to consumer in the form HOST1:PORT1,HOST2:PORT2.")
     .option("-p, --producer-broker-list [string]", "The broker list string to produce in the form HOST1:PORT1,HOST2:PORT2.")
@@ -20,6 +22,7 @@ commanderProgram
     .option("-d, --dry-run", "Just read message from stdin, convert, print output and exit.")
     .parse(process.argv);
 if (commanderProgram.configFile && fs_1.existsSync(commanderProgram.configFile)) {
+    debugLogger("Got config file", commanderProgram.configFile);
     try {
         localConfig = require(path_1.resolve(commanderProgram.configFile));
     }
@@ -27,7 +30,9 @@ if (commanderProgram.configFile && fs_1.existsSync(commanderProgram.configFile))
         console.error("Could not read config file", e);
     }
 }
+debugLogger("Loaded config file", localConfig);
 if (commanderProgram.topicConfigFile && fs_1.existsSync(commanderProgram.topicConfigFile)) {
+    debugLogger("Got topic config file", commanderProgram.topicConfigFile);
     try {
         var data = fs_1.readFileSync(path_1.resolve(commanderProgram.topicConfigFile));
         localConfig.topic = JSON.parse(data.toString());
@@ -36,6 +41,7 @@ if (commanderProgram.topicConfigFile && fs_1.existsSync(commanderProgram.topicCo
         console.error("Could not read config file", e);
     }
 }
+debugLogger("Loaded topic config file", localConfig.topic);
 if (!localConfig.topic ||
     !localConfig.consumer || !localConfig.consumer.noptions ||
     !localConfig.producer || !localConfig.producer.noptions) {
@@ -44,10 +50,12 @@ if (!localConfig.topic ||
     commanderProgram.help();
 }
 if (commanderProgram.consumerGroup) {
+    debugLogger("Rewrite consumer group from arg", commanderProgram.consumerGroup);
     localConfig.consumer.noptions["group.id"] = commanderProgram.consumerGroup;
     localConfig.producer.noptions["group.id"] = commanderProgram.consumerGroup;
 }
 if (commanderProgram.consumerBrokerList) {
+    debugLogger("Rewrite consumer broker list from arg", commanderProgram.consumerBrokerList);
     localConfig.consumer.noptions["metadata.broker.list"] = commanderProgram.consumerBrokerList;
 }
 if (!localConfig.consumer.noptions["metadata.broker.list"]) {
@@ -55,6 +63,7 @@ if (!localConfig.consumer.noptions["metadata.broker.list"]) {
     commanderProgram.help();
 }
 if (commanderProgram.producerBrokerList) {
+    debugLogger("Rewrite producer broker list from arg", commanderProgram.producerBrokerList);
     localConfig.producer.noptions["metadata.broker.list"] = commanderProgram.producerBrokerList;
 }
 if (!localConfig.producer.noptions["metadata.broker.list"]) {
@@ -62,6 +71,7 @@ if (!localConfig.producer.noptions["metadata.broker.list"]) {
     commanderProgram.help();
 }
 if (commanderProgram.consumerTopic) {
+    debugLogger("Rewrite consumer topic name from arg", commanderProgram.consumerTopic);
     localConfig.topic.name = commanderProgram.consumerTopic;
 }
 if (!localConfig.topic.name) {
@@ -69,6 +79,7 @@ if (!localConfig.topic.name) {
     commanderProgram.help();
 }
 if (commanderProgram.producerTopic) {
+    debugLogger("Rewrite producer topic name from arg", commanderProgram.producerTopic);
     localConfig.topic.newName = commanderProgram.producerTopic;
 }
 if (localConfig.logger) {
@@ -79,6 +90,7 @@ if (localConfig.logger) {
     localConfig.consumer.logger = logger.child({ stream: "consumer" });
     localConfig.producer.logger = logger.child({ stream: "producer" });
 }
+debugLogger("Initialize with config", localConfig);
 var mirror = new AnonKafkaMirror_1.AnonKafkaMirror(localConfig);
 if (commanderProgram.dryRun) {
     var stdin = process.stdin;
@@ -105,6 +117,7 @@ if (commanderProgram.dryRun) {
     });
 }
 else {
+    debugLogger("Start mirror");
     mirror.run();
 }
 //# sourceMappingURL=index.js.map
