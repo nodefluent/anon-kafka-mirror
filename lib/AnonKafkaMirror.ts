@@ -265,6 +265,9 @@ export class AnonKafkaMirror {
   }
 
   public run() {
-    this.stream.start({ outputKafkaConfig: this.config.producer });
+    return this.stream.start({ outputKafkaConfig: this.config.producer }).catch((e: Error) => {
+      console.error(e);
+      process.exit(1);
+    });
   }
 }

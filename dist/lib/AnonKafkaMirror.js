@@ -207,7 +207,10 @@ var AnonKafkaMirror = (function () {
             .to();
     }
     AnonKafkaMirror.prototype.run = function () {
-        this.stream.start({ outputKafkaConfig: this.config.producer });
+        return this.stream.start({ outputKafkaConfig: this.config.producer }).catch(function (e) {
+            console.error(e);
+            process.exit(1);
+        });
     };
     return AnonKafkaMirror;
 }());

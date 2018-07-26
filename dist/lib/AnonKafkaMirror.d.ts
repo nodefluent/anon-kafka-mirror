@@ -43,5 +43,5 @@ export declare class AnonKafkaMirror {
     config: IConfig;
     private stream;
     constructor(config: IConfig);
-    run(): void;
+    run(): any;
 }
