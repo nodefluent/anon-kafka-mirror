@@ -193,7 +193,7 @@ var AnonKafkaMirror = (function () {
         this.config = undefined;
         this.stream = {};
         this.config = config;
-        var kafkaStreams = new kafka_streams_1.default(this.config.consumer);
+        var kafkaStreams = new kafka_streams_1.KafkaStreams(this.config.consumer);
         this.stream = kafkaStreams.getKStream();
         this.stream
             .from(config.topic.name)

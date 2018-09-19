@@ -40,9 +40,9 @@ services:
     #     environment:
     #         DEBUG: "*"
     #     command: [
-    #         "anon-kafka-mirror", 
+    #         "anon-kafka-mirror",
     #         "--consumer-broker-list=kafka:9093",
-    #         "--consumer-topic=input", 
+    #         "--consumer-topic=input",
     #         "--producer-broker-list=kafka:9093",
     #         "--producer-topic=output",
     #         "--consumer-group=test-group",
@@ -64,10 +64,10 @@ services:
         environment:
             DEBUG: "*"
         command: [
-            "nodemon",
-            "/usr/src/app/dist/index.js", 
+            "node",
+            "/usr/src/app/dist/index.js",
             "--consumer-broker-list=kafka:9093",
-            "--consumer-topic=input", 
+            "--consumer-topic=input",
             "--producer-broker-list=kafka:9093",
             "--producer-topic=output",
             "--consumer-group=test-group",

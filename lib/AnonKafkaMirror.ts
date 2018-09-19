@@ -2,7 +2,7 @@
 
 import * as faker from "faker";
 import { fromJS, List, Map } from "immutable";
-import KafkaStreams from "kafka-streams";
+import { KafkaStreams } from "kafka-streams";
 import * as murmurhash from "murmurhash";
 import { Logger, LoggerOptions } from "pino";
 
