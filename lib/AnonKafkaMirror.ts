@@ -202,30 +202,34 @@ export class AnonKafkaMirror {
       .map((m) => mapMessage(config, m))
       .tap((message) => {
         debugLogger(message, "Transformed message");
-        this.metrics.transformedCounter.inc();
+        if (this.metrics) {
+          this.metrics.transformedCounter.inc();
+        }
       })
       .to();
   }
 
   public run() {
-    this.metrics = new Metrics(this.config.metrics);
-    this.metrics.collect(this.app);
-    this.app.get("/metrics", Metrics.exposeMetricsRequestHandler);
+    if (this.config.metrics && this.config.metrics.port && this.config.metrics.probeIntervalMs) {
+      this.metrics = new Metrics(this.config.metrics);
+      this.metrics.collect(this.app);
+      this.app.get("/metrics", Metrics.exposeMetricsRequestHandler);
 
-    this.app.get("/admin/healthcheck", (_, res) => {
-      res.status(this.alive ? 200 : 503).end();
-    });
-
-    this.app.get("/admin/health", (_, res) => {
-      res.status(200).json({
-        status: this.alive ? "UP" : "DOWN",
-        uptime: process.uptime(),
+      this.app.get("/admin/healthcheck", (_, res) => {
+        res.status(this.alive ? 200 : 503).end();
       });
-    });
 
-    this.app.listen(this.config.metrics.port, () => {
-      debugLogger(`Service up @ http://localhost:${this.config.metrics.port}`);
-    });
+      this.app.get("/admin/health", (_, res) => {
+        res.status(200).json({
+          status: this.alive ? "UP" : "DOWN",
+          uptime: process.uptime(),
+        });
+      });
+
+      this.app.listen(this.config.metrics.port, () => {
+        debugLogger(`Service up @ http://localhost:${this.config.metrics.port}`);
+      });
+    }
 
     // @ts-ignore
     return this.stream.start({ outputKafkaConfig: this.config.producer })

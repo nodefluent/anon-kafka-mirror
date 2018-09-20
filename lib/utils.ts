@@ -1,34 +1,4 @@
 import * as murmurhash from "murmurhash";
-import { IConfig } from "./types";
-
-export const clearConfig = (config: IConfig) => {
-  const cleanConfig = Object.assign({}, config);
-  const secretPlaceholder = "***";
-  if (cleanConfig.consumer.noptions) {
-    if (cleanConfig.consumer.noptions["ssl.key.password"]) {
-      cleanConfig.consumer.noptions["ssl.key.password"] = secretPlaceholder;
-    }
-    if (cleanConfig.consumer.noptions["sasl.password"]) {
-      cleanConfig.consumer.noptions["sasl.password"] = secretPlaceholder;
-    }
-    if (cleanConfig.consumer.logger) {
-      delete cleanConfig.consumer.logger;
-    }
-  }
-  if (cleanConfig.producer.noptions) {
-    if (cleanConfig.producer.noptions["ssl.key.password"]) {
-      cleanConfig.producer.noptions["ssl.key.password"] = secretPlaceholder;
-    }
-    if (cleanConfig.producer.noptions["sasl.password"]) {
-      cleanConfig.producer.noptions["sasl.password"] = secretPlaceholder;
-    }
-    if (cleanConfig.producer.logger) {
-      delete cleanConfig.producer.logger;
-    }
-  }
-
-  return cleanConfig;
-};
 
 export const arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
 

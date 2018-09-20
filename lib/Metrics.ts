@@ -1,5 +1,3 @@
-"use strict";
-
 import * as gcProfiler from "gc-profiler";
 import * as promClient from "prom-client";
 

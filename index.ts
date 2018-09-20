@@ -7,7 +7,6 @@ import { resolve } from "path";
 import * as pino from "pino";
 import { AnonKafkaMirror, mapMessage } from "./lib/AnonKafkaMirror";
 import config from "./lib/config/default";
-import { clearConfig } from "./lib/utils";
 
 let localConfig = config;
 const debugLogger = debug("anon-kafka-mirror:cli");
@@ -35,7 +34,6 @@ if (commanderProgram.configFile && existsSync(commanderProgram.configFile)) {
         console.error("Could not read config file", e);
     }
 }
-debugLogger("Loaded config file", clearConfig(localConfig));
 
 if (commanderProgram.topicConfigFile && existsSync(commanderProgram.topicConfigFile)) {
     debugLogger("Got topic config file", commanderProgram.topicConfigFile);
@@ -105,8 +103,6 @@ if (localConfig.logger) {
     localConfig.consumer.logger = logger.child({ stream: "consumer" });
     localConfig.producer.logger = logger.child({ stream: "producer" });
 }
-
-debugLogger("Initialize with config", clearConfig(localConfig));
 
 const mirror = new AnonKafkaMirror(localConfig);
 
