@@ -1,27 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+var debug_1 = require("debug");
+var express = require("express");
 var faker = require("faker");
 var immutable_1 = require("immutable");
 var kafka_streams_1 = require("kafka-streams");
-var murmurhash = require("murmurhash");
-exports.arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
-exports.splitPath = function (path) {
-    if (!path) {
-        return [];
-    }
-    return path.split(".").map(function (p) {
-        try {
-            var pathKey = parseInt(p, 10);
-            if (isNaN(pathKey)) {
-                return p;
-            }
-            return pathKey;
-        }
-        catch (e) {
-            return p;
-        }
-    });
-};
+var Metrics_1 = require("./Metrics");
+var utils_1 = require("./utils");
+var debugLogger = debug_1.default("anon-kafka-mirror:mirror");
 exports.fake = function (format, type) {
     if (format === "hashed.uuid") {
         return;
@@ -36,11 +22,11 @@ exports.fake = function (format, type) {
 };
 var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
     if (s === void 0) { s = ""; }
-    var keyPathMatch = key.match(exports.arrayMatch);
+    var keyPathMatch = key.match(utils_1.arrayMatch);
     var prefix = keyPathMatch[1];
     var suffix = s || keyPathMatch[3];
     if (prefix) {
-        var prefixPath_1 = exports.splitPath(prefix);
+        var prefixPath_1 = utils_1.splitPath(prefix);
         var keyArray = inputMessage.getIn(prefixPath_1);
         if (immutable_1.List.isList(keyArray)) {
             map = map.setIn(prefixPath_1, immutable_1.List());
@@ -54,8 +40,8 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
                 }
                 else {
                     if (suffix) {
-                        keyPath = keyPath.concat(exports.splitPath(suffix));
-                        newListPath = newListPath.concat(exports.splitPath(suffix));
+                        keyPath = keyPath.concat(utils_1.splitPath(suffix));
+                        newListPath = newListPath.concat(utils_1.splitPath(suffix));
                     }
                     var keyValue = inputMessage.getIn(keyPath);
                     if (keyValue === null) {
@@ -64,7 +50,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
                     }
                     else if (keyValue !== undefined) {
                         if (immutable_1.Map.isMap(keyValue)) {
-                            var mapValue = keyValue.getIn(exports.splitPath(suffix));
+                            var mapValue = keyValue.getIn(utils_1.splitPath(suffix));
                             if (format) {
                                 mapValue = exports.fake(format, type);
                             }
@@ -89,8 +75,8 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
 };
 var parseByKey = function (key, map, inputMessage, format, type) {
     if (key && typeof key === "string") {
-        if (!key.match(exports.arrayMatch)[2]) {
-            var keyPath = exports.splitPath(key);
+        if (!key.match(utils_1.arrayMatch)[2]) {
+            var keyPath = utils_1.splitPath(key);
             var keyValue = inputMessage.getIn(keyPath);
             if (keyValue === null) {
                 map = map.setIn(keyPath, null);
@@ -98,7 +84,7 @@ var parseByKey = function (key, map, inputMessage, format, type) {
             else if (keyValue !== undefined) {
                 if (format) {
                     if (format === "hashed.uuid") {
-                        keyValue = hashUUID(keyValue);
+                        keyValue = utils_1.hashUUID(keyValue);
                     }
                     else {
                         keyValue = exports.fake(format, type);
@@ -112,17 +98,6 @@ var parseByKey = function (key, map, inputMessage, format, type) {
         }
     }
     return map;
-};
-var isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/, "i");
-var hashUUID = function (uuid) {
-    if (!isUUIDRegExp.test(uuid)) {
-        return uuid;
-    }
-    var firstPart = uuid.substr(0, 6);
-    var hashedfirstPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
-    var lastPart = uuid.substr(-6, 6);
-    var hashedlastPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
-    return uuid.replace(firstPart, hashedfirstPart).replace(lastPart, hashedlastPart);
 };
 exports.mapMessage = function (config, m) {
     var inputMessage = immutable_1.fromJS(m);
@@ -190,9 +165,12 @@ exports.mapMessage = function (config, m) {
 };
 var AnonKafkaMirror = (function () {
     function AnonKafkaMirror(config) {
+        var _this = this;
         this.config = undefined;
-        this.stream = {};
         this.config = config;
+        this.app = express();
+        this.metrics = null;
+        this.alive = true;
         var kafkaStreams = new kafka_streams_1.KafkaStreams(this.config.consumer);
         this.stream = kafkaStreams.getKStream();
         this.stream
@@ -200,14 +178,31 @@ var AnonKafkaMirror = (function () {
             .mapJSONConvenience()
             .map(function (m) { return exports.mapMessage(config, m); })
             .tap(function (message) {
-            if (config.consumer.logger && config.consumer.logger.debug) {
-                config.producer.logger.debug(message, "Transformed message");
-            }
+            debugLogger(message, "Transformed message");
+            _this.metrics.transformedCounter.inc();
         })
             .to();
     }
     AnonKafkaMirror.prototype.run = function () {
-        return this.stream.start({ outputKafkaConfig: this.config.producer }).catch(function (e) {
+        var _this = this;
+        this.metrics = new Metrics_1.default(this.config.metrics);
+        this.metrics.collect(this.app);
+        this.app.get("/metrics", Metrics_1.default.exposeMetricsRequestHandler);
+        this.app.get("/admin/healthcheck", function (_, res) {
+            res.status(_this.alive ? 200 : 503).end();
+        });
+        this.app.get("/admin/health", function (_, res) {
+            res.status(200).json({
+                status: _this.alive ? "UP" : "DOWN",
+                uptime: process.uptime(),
+            });
+        });
+        this.app.listen(this.config.metrics.port, function () {
+            debugLogger("Service up @ http://localhost:" + _this.config.metrics.port);
+        });
+        return this.stream.start({ outputKafkaConfig: this.config.producer })
+            .catch(function (e) {
+            _this.alive = false;
             console.error(e);
             process.exit(1);
         });

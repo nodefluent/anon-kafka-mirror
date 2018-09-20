@@ -1,66 +1,15 @@
 "use strict";
 
+import debug from "debug";
+import * as express from "express";
 import * as faker from "faker";
 import { fromJS, List, Map } from "immutable";
-import { KafkaStreams } from "kafka-streams";
-import * as murmurhash from "murmurhash";
-import { Logger, LoggerOptions } from "pino";
+import { KafkaStreams, KStream } from "kafka-streams";
+import Metrics from "./Metrics";
+import { IConfig } from "./types";
+import { arrayMatch, hashUUID, splitPath } from "./utils";
 
-export interface IConfig {
-  logger?: LoggerOptions;
-  consumer: {
-    noptions: {
-      [key: string]: string;
-    },
-    tconf: {
-      [key: string]: string;
-    },
-    logger?: Logger;
-  };
-  producer: {
-    noptions: {
-      [key: string]: string;
-    },
-    tconf: {
-      [key: string]: string | number;
-    },
-    logger?: Logger;
-  };
-  topic: {
-    name: string,
-    newName?: string,
-    key: {
-      proxy: boolean,
-      type?: string,
-      format?: string,
-    },
-    proxy: string[],
-    alter: Array<{
-      name: string,
-      type?: string,
-      format?: string,
-    }>,
-  };
-}
-
-export const arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
-
-export const splitPath = (path: string) => {
-  if (!path) {
-    return [];
-  }
-  return path.split(".").map((p) => {
-    try {
-      const pathKey = parseInt(p, 10);
-      if (isNaN(pathKey)) {
-        return p;
-      }
-      return pathKey;
-    } catch (e) {
-      return p;
-    }
-  });
-};
+const debugLogger = debug("anon-kafka-mirror:mirror");
 
 export const fake = (format: string, type?: string) => {
   if (format === "hashed.uuid") {
@@ -161,19 +110,6 @@ const parseByKey = (
   }
   return map;
 };
-const isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/, "i");
-const hashUUID = (uuid: string): string => {
-  if (!isUUIDRegExp.test(uuid)) {
-    return uuid;
-  }
-
-  const firstPart = uuid.substr(0, 6);
-  const hashedfirstPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
-  const lastPart = uuid.substr(-6, 6);
-  const hashedlastPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
-
-  return uuid.replace(firstPart, hashedfirstPart).replace(lastPart, hashedlastPart);
-};
 
 export const mapMessage = (config: IConfig, m: any) => {
   const inputMessage = fromJS(m);
@@ -246,9 +182,17 @@ export const mapMessage = (config: IConfig, m: any) => {
 
 export class AnonKafkaMirror {
   public config: IConfig = undefined;
-  private stream: any = {};
+  public app: any;
+  public metrics: Metrics;
+  public alive: boolean;
+  public server: any;
+  private stream: KStream;
+
   constructor(config: IConfig) {
     this.config = config;
+    this.app = express();
+    this.metrics = null;
+    this.alive = true;
 
     const kafkaStreams = new KafkaStreams(this.config.consumer);
     this.stream = kafkaStreams.getKStream();
@@ -257,17 +201,38 @@ export class AnonKafkaMirror {
       .mapJSONConvenience()
       .map((m) => mapMessage(config, m))
       .tap((message) => {
-        if (config.consumer.logger && config.consumer.logger.debug) {
-          config.producer.logger.debug(message, "Transformed message");
-        }
+        debugLogger(message, "Transformed message");
+        this.metrics.transformedCounter.inc();
       })
       .to();
   }
 
   public run() {
-    return this.stream.start({ outputKafkaConfig: this.config.producer }).catch((e: Error) => {
-      console.error(e);
-      process.exit(1);
+    this.metrics = new Metrics(this.config.metrics);
+    this.metrics.collect(this.app);
+    this.app.get("/metrics", Metrics.exposeMetricsRequestHandler);
+
+    this.app.get("/admin/healthcheck", (_, res) => {
+      res.status(this.alive ? 200 : 503).end();
     });
+
+    this.app.get("/admin/health", (_, res) => {
+      res.status(200).json({
+        status: this.alive ? "UP" : "DOWN",
+        uptime: process.uptime(),
+      });
+    });
+
+    this.app.listen(this.config.metrics.port, () => {
+      debugLogger(`Service up @ http://localhost:${this.config.metrics.port}`);
+    });
+
+    // @ts-ignore
+    return this.stream.start({ outputKafkaConfig: this.config.producer })
+      .catch((e: Error) => {
+        this.alive = false;
+        console.error(e);
+        process.exit(1);
+      });
   }
 }

@@ -45,5 +45,9 @@ declare const config: {
             type?: undefined;
         })[];
     };
+    metrics: {
+        port: number;
+        probeIntervalMs: number;
+    };
 };
 export default config;

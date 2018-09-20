@@ -51,6 +51,10 @@ var config = {
                 format: "random.number",
             }],
     },
+    metrics: {
+        port: 8383,
+        probeIntervalMs: 5000,
+    },
 };
 exports.default = config;
 //# sourceMappingURL=default.js.map

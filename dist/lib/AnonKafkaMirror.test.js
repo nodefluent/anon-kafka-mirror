@@ -4,58 +4,6 @@ var chai_1 = require("chai");
 require("mocha");
 var AnonKafkaMirror_1 = require("./AnonKafkaMirror");
 describe("AnonKafkaMirror", function () {
-    describe("arrayMatch:" + typeof AnonKafkaMirror_1.arrayMatch, function () {
-        it("should match supported patterns", function () {
-            var match = "".match(AnonKafkaMirror_1.arrayMatch);
-            chai_1.expect(match).to.be.ok;
-            chai_1.expect(match[1]).to.be.equal("");
-            chai_1.expect(match[2]).to.be.equal("");
-            match = "a".match(AnonKafkaMirror_1.arrayMatch);
-            chai_1.expect(match).to.be.ok;
-            chai_1.expect(match[1]).to.be.equal("a");
-            chai_1.expect(match[2]).to.be.equal("");
-            chai_1.expect(match[3]).to.be.equal("");
-            match = "a.b".match(AnonKafkaMirror_1.arrayMatch);
-            chai_1.expect(match).to.be.ok;
-            chai_1.expect(match[1]).to.be.equal("a.b");
-            chai_1.expect(match[2]).to.be.equal("");
-            chai_1.expect(match[3]).to.be.equal("");
-            match = "a.b[*]".match(AnonKafkaMirror_1.arrayMatch);
-            chai_1.expect(match).to.be.ok;
-            chai_1.expect(match[1]).to.be.equal("a.b");
-            chai_1.expect(match[2]).to.be.equal("[*]");
-            chai_1.expect(match[3]).to.be.equal("");
-            match = "a.b[*][*]".match(AnonKafkaMirror_1.arrayMatch);
-            chai_1.expect(match).to.be.ok;
-            chai_1.expect(match[1]).to.be.equal("a.b");
-            chai_1.expect(match[2]).to.be.equal("[*][*]");
-            chai_1.expect(match[3]).to.be.equal("");
-            match = "a.b[*][*]".match(AnonKafkaMirror_1.arrayMatch);
-            chai_1.expect(match).to.be.ok;
-            chai_1.expect(match[1]).to.be.equal("a.b");
-            chai_1.expect(match[2]).to.be.equal("[*][*]");
-            chai_1.expect(match[3]).to.be.equal("");
-            match = "a.b[*][*]c".match(AnonKafkaMirror_1.arrayMatch);
-            chai_1.expect(match).to.be.ok;
-            chai_1.expect(match[1]).to.be.equal("a.b");
-            chai_1.expect(match[2]).to.be.equal("[*][*]");
-            chai_1.expect(match[3]).to.be.equal("c");
-            match = "a.b[*]c.d".match(AnonKafkaMirror_1.arrayMatch);
-            chai_1.expect(match).to.be.ok;
-            chai_1.expect(match[1]).to.be.equal("a.b");
-            chai_1.expect(match[2]).to.be.equal("[*]");
-            chai_1.expect(match[3]).to.be.equal("c.d");
-        });
-    });
-    describe("splitPath:" + typeof AnonKafkaMirror_1.splitPath, function () {
-        it("should parse supported patterns", function () {
-            chai_1.expect(AnonKafkaMirror_1.splitPath("")).to.be.deep.equal([]);
-            chai_1.expect(AnonKafkaMirror_1.splitPath("a")).to.be.deep.equal(["a"]);
-            chai_1.expect(AnonKafkaMirror_1.splitPath("a.b")).to.be.deep.equal(["a", "b"]);
-            chai_1.expect(AnonKafkaMirror_1.splitPath("a.b.1")).to.be.deep.equal(["a", "b", 1]);
-            chai_1.expect(AnonKafkaMirror_1.splitPath("a.b.1.c")).to.be.deep.equal(["a", "b", 1, "c"]);
-        });
-    });
     describe("mapMessage:" + typeof AnonKafkaMirror_1.mapMessage, function () {
         it("should proxy key based on the config", function () {
             chai_1.expect(AnonKafkaMirror_1.mapMessage({ topic: {} }, { key: null })).to.be.deep.equal({ key: null, value: null });

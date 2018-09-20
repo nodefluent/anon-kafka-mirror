@@ -8,6 +8,7 @@ var path_1 = require("path");
 var pino = require("pino");
 var AnonKafkaMirror_1 = require("./lib/AnonKafkaMirror");
 var default_1 = require("./lib/config/default");
+var utils_1 = require("./lib/utils");
 var localConfig = default_1.default;
 var debugLogger = debug_1.default("anon-kafka-mirror:cli");
 commanderProgram
@@ -30,7 +31,7 @@ if (commanderProgram.configFile && fs_1.existsSync(commanderProgram.configFile))
         console.error("Could not read config file", e);
     }
 }
-debugLogger("Loaded config file", localConfig);
+debugLogger("Loaded config file", utils_1.clearConfig(localConfig));
 if (commanderProgram.topicConfigFile && fs_1.existsSync(commanderProgram.topicConfigFile)) {
     debugLogger("Got topic config file", commanderProgram.topicConfigFile);
     try {
@@ -90,7 +91,7 @@ if (localConfig.logger) {
     localConfig.consumer.logger = logger.child({ stream: "consumer" });
     localConfig.producer.logger = logger.child({ stream: "producer" });
 }
-debugLogger("Initialize with config", localConfig);
+debugLogger("Initialize with config", utils_1.clearConfig(localConfig));
 var mirror = new AnonKafkaMirror_1.AnonKafkaMirror(localConfig);
 if (commanderProgram.dryRun) {
     var stdin = process.stdin;
