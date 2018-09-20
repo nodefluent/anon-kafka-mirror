@@ -1,33 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var murmurhash = require("murmurhash");
-exports.clearConfig = function (config) {
-    var cleanConfig = Object.assign({}, config);
-    var secretPlaceholder = "***";
-    if (cleanConfig.consumer.noptions) {
-        if (cleanConfig.consumer.noptions["ssl.key.password"]) {
-            cleanConfig.consumer.noptions["ssl.key.password"] = secretPlaceholder;
-        }
-        if (cleanConfig.consumer.noptions["sasl.password"]) {
-            cleanConfig.consumer.noptions["sasl.password"] = secretPlaceholder;
-        }
-        if (cleanConfig.consumer.logger) {
-            delete cleanConfig.consumer.logger;
-        }
-    }
-    if (cleanConfig.producer.noptions) {
-        if (cleanConfig.producer.noptions["ssl.key.password"]) {
-            cleanConfig.producer.noptions["ssl.key.password"] = secretPlaceholder;
-        }
-        if (cleanConfig.producer.noptions["sasl.password"]) {
-            cleanConfig.producer.noptions["sasl.password"] = secretPlaceholder;
-        }
-        if (cleanConfig.producer.logger) {
-            delete cleanConfig.producer.logger;
-        }
-    }
-    return cleanConfig;
-};
 exports.arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
 exports.splitPath = function (path) {
     if (!path) {

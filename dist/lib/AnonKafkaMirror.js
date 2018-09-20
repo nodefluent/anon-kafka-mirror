@@ -179,27 +179,31 @@ var AnonKafkaMirror = (function () {
             .map(function (m) { return exports.mapMessage(config, m); })
             .tap(function (message) {
             debugLogger(message, "Transformed message");
-            _this.metrics.transformedCounter.inc();
+            if (_this.metrics) {
+                _this.metrics.transformedCounter.inc();
+            }
         })
             .to();
     }
     AnonKafkaMirror.prototype.run = function () {
         var _this = this;
-        this.metrics = new Metrics_1.default(this.config.metrics);
-        this.metrics.collect(this.app);
-        this.app.get("/metrics", Metrics_1.default.exposeMetricsRequestHandler);
-        this.app.get("/admin/healthcheck", function (_, res) {
-            res.status(_this.alive ? 200 : 503).end();
-        });
-        this.app.get("/admin/health", function (_, res) {
-            res.status(200).json({
-                status: _this.alive ? "UP" : "DOWN",
-                uptime: process.uptime(),
+        if (this.config.metrics && this.config.metrics.port && this.config.metrics.probeIntervalMs) {
+            this.metrics = new Metrics_1.default(this.config.metrics);
+            this.metrics.collect(this.app);
+            this.app.get("/metrics", Metrics_1.default.exposeMetricsRequestHandler);
+            this.app.get("/admin/healthcheck", function (_, res) {
+                res.status(_this.alive ? 200 : 503).end();
             });
-        });
-        this.app.listen(this.config.metrics.port, function () {
-            debugLogger("Service up @ http://localhost:" + _this.config.metrics.port);
-        });
+            this.app.get("/admin/health", function (_, res) {
+                res.status(200).json({
+                    status: _this.alive ? "UP" : "DOWN",
+                    uptime: process.uptime(),
+                });
+            });
+            this.app.listen(this.config.metrics.port, function () {
+                debugLogger("Service up @ http://localhost:" + _this.config.metrics.port);
+            });
+        }
         return this.stream.start({ outputKafkaConfig: this.config.producer })
             .catch(function (e) {
             _this.alive = false;
