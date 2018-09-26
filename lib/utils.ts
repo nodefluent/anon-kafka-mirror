@@ -33,3 +33,36 @@ export const hashUUID = (uuid: string): string => {
 
   return uuid.replace(firstPart, hashedfirstPart).replace(lastPart, hashedlastPart);
 };
+
+export const hashString = (input: string, ignoreLeft?: number, ignoreRight?: number): string => {
+
+  if ((ignoreLeft || 0) + (ignoreRight || 0) >= input.length) {
+    return input;
+  }
+
+  let unhashed = input;
+  if (ignoreLeft) {
+    unhashed = unhashed.substring(ignoreLeft);
+  }
+  if (ignoreRight) {
+    unhashed = unhashed.substring(0, unhashed.length - ignoreRight);
+  }
+
+  let hashed = murmurhash.v3(murmurhash.v3(unhashed, 0).toString(), 0).toString();
+  if (unhashed.length < hashed.length) {
+    hashed = hashed.substring(0, unhashed.length);
+  } else if (unhashed.length > hashed.length) {
+    const diff = unhashed.length - hashed.length;
+    hashed = `${hashed}${hashed.substring(0, diff)}`;
+  }
+
+  let result = hashed;
+  if (ignoreLeft) {
+    result = `${input.substring(0, ignoreLeft)}${result}`;
+  }
+  if (ignoreRight) {
+    result = `${result}${input.substring(input.length - ignoreRight)}`;
+  }
+
+  return result;
+};

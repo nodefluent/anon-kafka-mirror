@@ -33,6 +33,8 @@ export interface IConfig {
       name: string,
       type?: string,
       format?: string,
+      ignoreLeft?: number,
+      ignoreRight?: number,
     }>,
   };
   metrics: {

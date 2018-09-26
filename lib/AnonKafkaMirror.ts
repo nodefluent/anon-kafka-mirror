@@ -4,15 +4,16 @@ import debug from "debug";
 import * as express from "express";
 import * as faker from "faker";
 import { fromJS, List, Map } from "immutable";
-import { KafkaStreams, KStream } from "kafka-streams";
+import { KafkaStreams, KStream } from "kafka-streams";
 import Metrics from "./Metrics";
 import { IConfig } from "./types";
-import { arrayMatch, hashUUID, splitPath } from "./utils";
+import { arrayMatch, hashString, hashUUID, splitPath } from "./utils";
 
 const debugLogger = debug("anon-kafka-mirror:mirror");
 
 export const fake = (format: string, type?: string) => {
-  if (format === "hashed.uuid") {
+  if (format === "hashed.uuid" ||
+    format === "hashed.string") {
     return;
   }
   let value: string | number = faker.fake(`{{${format}}}`);
@@ -87,6 +88,8 @@ const parseByKey = (
   inputMessage: Map<string, any>,
   format?: string,
   type?: string,
+  ignoreLeft?: number,
+  ignoreRight?: number,
 ) => {
   if (key && typeof key === "string") {
     if (!key.match(arrayMatch)[2]) {
@@ -95,12 +98,17 @@ const parseByKey = (
       if (keyValue === null) {
         map = map.setIn(keyPath, null);
       } else if (keyValue !== undefined) {
-        if (format) {
-          if (format === "hashed.uuid") {
+        switch (format) {
+          case undefined:
+            break;
+          case "hashed.uuid":
             keyValue = hashUUID(keyValue);
-          } else {
+            break;
+          case "hashed.string":
+            keyValue = hashString(keyValue, ignoreLeft, ignoreRight);
+            break;
+          default:
             keyValue = fake(format, type);
-          }
         }
         map = map.setIn(keyPath, keyValue);
       }
@@ -165,7 +173,14 @@ export const mapMessage = (config: IConfig, m: any) => {
 
   if (config.topic.alter && config.topic.alter instanceof Array) {
     config.topic.alter.forEach((key) => {
-      outputMessage = parseByKey(`value.${key.name}`, outputMessage, inputMessage, key.format, key.type);
+      outputMessage = parseByKey(
+        `value.${key.name}`,
+        outputMessage,
+        inputMessage,
+        key.format,
+        key.type,
+        key.ignoreLeft,
+        key.ignoreRight);
     });
   }
   let value = outputMessage.get("value");

@@ -9,7 +9,8 @@ var Metrics_1 = require("./Metrics");
 var utils_1 = require("./utils");
 var debugLogger = debug_1.default("anon-kafka-mirror:mirror");
 exports.fake = function (format, type) {
-    if (format === "hashed.uuid") {
+    if (format === "hashed.uuid" ||
+        format === "hashed.string") {
         return;
     }
     var value = faker.fake("{{" + format + "}}");
@@ -73,7 +74,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
     }
     return map;
 };
-var parseByKey = function (key, map, inputMessage, format, type) {
+var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ignoreRight) {
     if (key && typeof key === "string") {
         if (!key.match(utils_1.arrayMatch)[2]) {
             var keyPath = utils_1.splitPath(key);
@@ -82,13 +83,17 @@ var parseByKey = function (key, map, inputMessage, format, type) {
                 map = map.setIn(keyPath, null);
             }
             else if (keyValue !== undefined) {
-                if (format) {
-                    if (format === "hashed.uuid") {
+                switch (format) {
+                    case undefined:
+                        break;
+                    case "hashed.uuid":
                         keyValue = utils_1.hashUUID(keyValue);
-                    }
-                    else {
+                        break;
+                    case "hashed.string":
+                        keyValue = utils_1.hashString(keyValue, ignoreLeft, ignoreRight);
+                        break;
+                    default:
                         keyValue = exports.fake(format, type);
-                    }
                 }
                 map = map.setIn(keyPath, keyValue);
             }
@@ -147,7 +152,7 @@ exports.mapMessage = function (config, m) {
     }
     if (config.topic.alter && config.topic.alter instanceof Array) {
         config.topic.alter.forEach(function (key) {
-            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type);
+            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type, key.ignoreLeft, key.ignoreRight);
         });
     }
     var value = outputMessage.get("value");

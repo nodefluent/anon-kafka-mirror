@@ -125,5 +125,73 @@ describe("AnonKafkaMirror", function () {
         var hashedUUID = JSON.parse(outputMessage.value).someUUID;
         chai_1.expect(hashedUUID).to.equal("27364565-a3d4-4a7f-b4c5-7f0099273645");
     });
+    it("should map message with hashed.string", function () {
+        var config = {
+            topic: {
+                alter: [
+                    {
+                        name: "someString",
+                        type: "string",
+                        format: "hashed.string",
+                    },
+                ],
+            },
+        };
+        var outputMessage = AnonKafkaMirror_1.mapMessage(config, { value: { someString: "2401234567899" } });
+        var hashedString = JSON.parse(outputMessage.value).someString;
+        chai_1.expect(hashedString).to.equal("2582443132258");
+    });
+    it("should map message with hashed.string and ignore left chars", function () {
+        var config = {
+            topic: {
+                alter: [
+                    {
+                        name: "someString",
+                        type: "string",
+                        format: "hashed.string",
+                        ignoreLeft: 3,
+                    },
+                ],
+            },
+        };
+        var outputMessage = AnonKafkaMirror_1.mapMessage(config, { value: { someString: "2401234567899" } });
+        var hashedString = JSON.parse(outputMessage.value).someString;
+        chai_1.expect(hashedString).to.equal("2401462429965");
+    });
+    it("should map message with hashed.string and ignore right chars", function () {
+        var config = {
+            topic: {
+                alter: [
+                    {
+                        name: "someString",
+                        type: "string",
+                        format: "hashed.string",
+                        ignoreRight: 3,
+                    },
+                ],
+            },
+        };
+        var outputMessage = AnonKafkaMirror_1.mapMessage(config, { value: { someString: "2401234567899" } });
+        var hashedString = JSON.parse(outputMessage.value).someString;
+        chai_1.expect(hashedString).to.equal("3173783966899");
+    });
+    it("should map message with hashed.string and ignore left and right chars", function () {
+        var config = {
+            topic: {
+                alter: [
+                    {
+                        name: "someString",
+                        type: "string",
+                        format: "hashed.string",
+                        ignoreLeft: 3,
+                        ignoreRight: 2,
+                    },
+                ],
+            },
+        };
+        var outputMessage = AnonKafkaMirror_1.mapMessage(config, { value: { someString: "2401234567899" } });
+        var hashedString = JSON.parse(outputMessage.value).someString;
+        chai_1.expect(hashedString).to.equal("2401293827499");
+    });
 });
 //# sourceMappingURL=AnonKafkaMirror.test.js.map

@@ -132,4 +132,76 @@ describe("AnonKafkaMirror", () => {
     const hashedUUID = JSON.parse(outputMessage.value).someUUID;
     expect(hashedUUID).to.equal("27364565-a3d4-4a7f-b4c5-7f0099273645");
   });
+
+  it("should map message with hashed.string", () => {
+    const config = {
+      topic: {
+        alter: [
+          {
+            name: "someString",
+            type: "string",
+            format: "hashed.string",
+          },
+        ],
+      },
+    } as IConfig;
+    const outputMessage = mapMessage(config, { value: { someString: "2401234567899" } });
+    const hashedString = JSON.parse(outputMessage.value).someString;
+    expect(hashedString).to.equal("2582443132258");
+  });
+
+  it("should map message with hashed.string and ignore left chars", () => {
+    const config = {
+      topic: {
+        alter: [
+          {
+            name: "someString",
+            type: "string",
+            format: "hashed.string",
+            ignoreLeft: 3,
+          },
+        ],
+      },
+    } as IConfig;
+    const outputMessage = mapMessage(config, { value: { someString: "2401234567899" } });
+    const hashedString = JSON.parse(outputMessage.value).someString;
+    expect(hashedString).to.equal("2401462429965");
+  });
+
+  it("should map message with hashed.string and ignore right chars", () => {
+    const config = {
+      topic: {
+        alter: [
+          {
+            name: "someString",
+            type: "string",
+            format: "hashed.string",
+            ignoreRight: 3,
+          },
+        ],
+      },
+    } as IConfig;
+    const outputMessage = mapMessage(config, { value: { someString: "2401234567899" } });
+    const hashedString = JSON.parse(outputMessage.value).someString;
+    expect(hashedString).to.equal("3173783966899");
+  });
+
+  it("should map message with hashed.string and ignore left and right chars", () => {
+    const config = {
+      topic: {
+        alter: [
+          {
+            name: "someString",
+            type: "string",
+            format: "hashed.string",
+            ignoreLeft: 3,
+            ignoreRight: 2,
+          },
+        ],
+      },
+    } as IConfig;
+    const outputMessage = mapMessage(config, { value: { someString: "2401234567899" } });
+    const hashedString = JSON.parse(outputMessage.value).someString;
+    expect(hashedString).to.equal("2401293827499");
+  });
 });
