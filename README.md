@@ -3,9 +3,10 @@
 [![npm version](https://badge.fury.io/js/anon-kafka-mirror.svg)](https://badge.fury.io/js/anon-kafka-mirror)
 [![Docker Repository on Quay](https://quay.io/repository/nodefluent/anon-kafka-mirror/status "Docker Repository on Quay")](https://quay.io/repository/nodefluent/anon-kafka-mirror)
 
-## TODO
+## Intro
 
--[] Better documentation
+Anonymize Kafka topics while mirroring them on the fly.
+Just pass a config file describing your topics and schema (and Kafka cluster connections) and start the service / container.
 
 ## Example
 
