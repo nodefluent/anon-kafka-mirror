@@ -27,6 +27,8 @@ export interface IConfig {
       proxy: boolean,
       type?: string,
       format?: string,
+      ignoreLeft?: number,
+      ignoreRight?: number,
     },
     proxy: string[],
     alter: Array<{

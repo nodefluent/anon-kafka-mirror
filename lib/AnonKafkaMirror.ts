@@ -140,9 +140,21 @@ export const mapMessage = (config: IConfig, m: any) => {
 
   if (config.topic.key && config.topic.key.proxy === false) {
     if (config.topic.key.format) {
-      const newKey = fake(config.topic.key.format, config.topic.key.type);
-      if (newKey) {
-        outputMessage = outputMessage.set("key", newKey);
+      let keyValue;
+      switch (config.topic.key.format) {
+        case undefined:
+          break;
+        case "hashed.uuid":
+          keyValue = hashUUID(keyValue);
+          break;
+        case "hashed.string":
+          keyValue = hashString(keyValue, config.topic.key.ignoreLeft, config.topic.key.ignoreRight);
+          break;
+        default:
+          keyValue = fake(config.topic.key.format, config.topic.key.type);
+      }
+      if (keyValue) {
+        outputMessage = outputMessage.set("key", keyValue);
       }
     }
   }
