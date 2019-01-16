@@ -66,3 +66,57 @@ export const hashString = (input: string, ignoreLeft?: number, ignoreRight?: num
 
   return result;
 };
+
+export const hashLuhnString = (input: string, prefixLength?: number, prefix?: string): string => {
+  if (prefixLength) {
+    const stringWithoutPrefixAndChecksum = input.substring(prefixLength, input.length - 1);
+    const hashedNumber = murmurhash.v3(murmurhash.v3(stringWithoutPrefixAndChecksum, 0).toString(), 0).toString();
+    const shortenedHashedNumber = hashedNumber.substring(0, stringWithoutPrefixAndChecksum.length);
+    const resultWithoutChecksum = `${input.substring(0, prefixLength)}${shortenedHashedNumber}`;
+    const checksum = calculateChecksum(resultWithoutChecksum);
+    return `${resultWithoutChecksum}${checksum}`;
+  } else if (prefix) {
+    const stringWithoutChecksum = input.substring(0, input.length - 1);
+    const hashedNumber = murmurhash.v3(murmurhash.v3(stringWithoutChecksum, 0).toString(), 0).toString();
+    const shortenedHashedNumber = hashedNumber.substring(0, stringWithoutChecksum.length);
+    const checksum = calculateChecksum(`${prefix}${shortenedHashedNumber}`);
+    return `${shortenedHashedNumber}${checksum}`;
+  } else {
+    const stringWithoutChecksum = input.substring(prefixLength, input.length - 1);
+    const hashedNumber = murmurhash.v3(murmurhash.v3(stringWithoutChecksum, 0).toString(), 0).toString();
+    const shortenedHashedNumber = hashedNumber.substring(0, stringWithoutChecksum.length);
+    const checksum = calculateChecksum(shortenedHashedNumber);
+    return `${shortenedHashedNumber}${checksum}`;
+  }
+};
+
+const calculateChecksum = (input: string): string => {
+  const invertedDigits = input
+    .split("")
+    .reverse()
+    .map((digit: string) => parseInt(digit, 10));
+
+  const multiplicators = [] as number[];
+  for (let i = 0; i < invertedDigits.length; i++) {
+    multiplicators.push(((i + 1) % 2) + 1);
+  }
+
+  const sum = invertedDigits
+    .reduce((accumulator: number, currentValue: number, currentIndex: number) => {
+      const product = currentValue * multiplicators[currentIndex];
+      return accumulator + (sumOfDigits(product));
+    }, 0);
+
+  const remainder = sum % 10;
+  const checksum = remainder === 0 ? 0 : 10 - remainder;
+
+  return checksum.toString();
+};
+
+const sumOfDigits = (value: number): number => {
+  return value
+    .toString()
+    .split("")
+    .map(Number)
+    .reduce((a: number, b: number) => a + b, 0);
+};

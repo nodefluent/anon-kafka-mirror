@@ -58,4 +58,53 @@ exports.hashString = function (input, ignoreLeft, ignoreRight) {
     }
     return result;
 };
+exports.hashLuhnString = function (input, prefixLength, prefix) {
+    if (prefixLength) {
+        var stringWithoutPrefixAndChecksum = input.substring(prefixLength, input.length - 1);
+        var hashedNumber = murmurhash.v3(murmurhash.v3(stringWithoutPrefixAndChecksum, 0).toString(), 0).toString();
+        var shortenedHashedNumber = hashedNumber.substring(0, stringWithoutPrefixAndChecksum.length);
+        var resultWithoutChecksum = "" + input.substring(0, prefixLength) + shortenedHashedNumber;
+        var checksum = calculateChecksum(resultWithoutChecksum);
+        return "" + resultWithoutChecksum + checksum;
+    }
+    else if (prefix) {
+        var stringWithoutChecksum = input.substring(0, input.length - 1);
+        var hashedNumber = murmurhash.v3(murmurhash.v3(stringWithoutChecksum, 0).toString(), 0).toString();
+        var shortenedHashedNumber = hashedNumber.substring(0, stringWithoutChecksum.length);
+        var checksum = calculateChecksum("" + prefix + shortenedHashedNumber);
+        return "" + shortenedHashedNumber + checksum;
+    }
+    else {
+        var stringWithoutChecksum = input.substring(prefixLength, input.length - 1);
+        var hashedNumber = murmurhash.v3(murmurhash.v3(stringWithoutChecksum, 0).toString(), 0).toString();
+        var shortenedHashedNumber = hashedNumber.substring(0, stringWithoutChecksum.length);
+        var checksum = calculateChecksum(shortenedHashedNumber);
+        return "" + shortenedHashedNumber + checksum;
+    }
+};
+var calculateChecksum = function (input) {
+    var invertedDigits = input
+        .split("")
+        .reverse()
+        .map(function (digit) { return parseInt(digit, 10); });
+    var multiplicators = [];
+    for (var i = 0; i < invertedDigits.length; i++) {
+        multiplicators.push(((i + 1) % 2) + 1);
+    }
+    var sum = invertedDigits
+        .reduce(function (accumulator, currentValue, currentIndex) {
+        var product = currentValue * multiplicators[currentIndex];
+        return accumulator + (sumOfDigits(product));
+    }, 0);
+    var remainder = sum % 10;
+    var checksum = remainder === 0 ? 0 : 10 - remainder;
+    return checksum.toString();
+};
+var sumOfDigits = function (value) {
+    return value
+        .toString()
+        .split("")
+        .map(Number)
+        .reduce(function (a, b) { return a + b; }, 0);
+};
 //# sourceMappingURL=utils.js.map

@@ -10,7 +10,8 @@ var utils_1 = require("./utils");
 var debugLogger = debug_1.default("anon-kafka-mirror:mirror");
 exports.fake = function (format, type) {
     if (format === "hashed.uuid" ||
-        format === "hashed.string") {
+        format === "hashed.string" ||
+        format === "luhn.string") {
         return;
     }
     var value = faker.fake("{{" + format + "}}");
@@ -74,7 +75,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
     }
     return map;
 };
-var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ignoreRight) {
+var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ignoreRight, prefixLength, prefix) {
     if (key && typeof key === "string") {
         if (!key.match(utils_1.arrayMatch)[2]) {
             var keyPath = utils_1.splitPath(key);
@@ -91,6 +92,9 @@ var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ign
                         break;
                     case "hashed.string":
                         keyValue = utils_1.hashString(keyValue, ignoreLeft, ignoreRight);
+                        break;
+                    case "luhn.string":
+                        keyValue = utils_1.hashLuhnString(keyValue, prefixLength, prefix);
                         break;
                     default:
                         keyValue = exports.fake(format, type);
@@ -124,9 +128,21 @@ exports.mapMessage = function (config, m) {
     }
     if (config.topic.key && config.topic.key.proxy === false) {
         if (config.topic.key.format) {
-            var newKey = exports.fake(config.topic.key.format, config.topic.key.type);
-            if (newKey) {
-                outputMessage = outputMessage.set("key", newKey);
+            var keyValue = void 0;
+            switch (config.topic.key.format) {
+                case undefined:
+                    break;
+                case "hashed.uuid":
+                    keyValue = utils_1.hashUUID(keyValue);
+                    break;
+                case "hashed.string":
+                    keyValue = utils_1.hashString(keyValue, config.topic.key.ignoreLeft, config.topic.key.ignoreRight);
+                    break;
+                default:
+                    keyValue = exports.fake(config.topic.key.format, config.topic.key.type);
+            }
+            if (keyValue) {
+                outputMessage = outputMessage.set("key", keyValue);
             }
         }
     }
@@ -152,7 +168,7 @@ exports.mapMessage = function (config, m) {
     }
     if (config.topic.alter && config.topic.alter instanceof Array) {
         config.topic.alter.forEach(function (key) {
-            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type, key.ignoreLeft, key.ignoreRight);
+            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type, key.ignoreLeft, key.ignoreRight, key.prefixLength, key.prefix);
         });
     }
     var value = outputMessage.get("value");

@@ -26,6 +26,8 @@ export interface IConfig {
             proxy: boolean;
             type?: string;
             format?: string;
+            ignoreLeft?: number;
+            ignoreRight?: number;
         };
         proxy: string[];
         alter: Array<{
@@ -34,6 +36,8 @@ export interface IConfig {
             format?: string;
             ignoreLeft?: number;
             ignoreRight?: number;
+            prefixLength?: number;
+            prefix?: string;
         }>;
     };
     metrics: {

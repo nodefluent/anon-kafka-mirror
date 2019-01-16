@@ -204,4 +204,40 @@ describe("AnonKafkaMirror", () => {
     const hashedString = JSON.parse(outputMessage.value).someString;
     expect(hashedString).to.equal("2401293827499");
   });
+
+  it("should map message with luhn algorithm and prefix", () => {
+    const config = {
+      topic: {
+        alter: [
+          {
+            name: "someString",
+            type: "string",
+            format: "luhn.string",
+            prefixLength: 3,
+          },
+        ],
+      },
+    } as IConfig;
+    const outputMessage = mapMessage(config, { value: { someString: "1231234567891" } });
+    const hashedString = JSON.parse(outputMessage.value).someString;
+    expect(hashedString).to.equal("1232843971175");
+  });
+
+  it("should map message with luhn algorithm and without prefix", () => {
+    const config = {
+      topic: {
+        alter: [
+          {
+            name: "someString",
+            type: "string",
+            format: "luhn.string",
+            prefix: "123",
+          },
+        ],
+      },
+    } as IConfig;
+    const outputMessage = mapMessage(config, { value: { someString: "1234567891" } });
+    const hashedString = JSON.parse(outputMessage.value).someString;
+    expect(hashedString).to.equal("2843971175");
+  });
 });

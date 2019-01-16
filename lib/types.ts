@@ -37,6 +37,8 @@ export interface IConfig {
       format?: string,
       ignoreLeft?: number,
       ignoreRight?: number,
+      prefixLength?: number,
+      prefix?: string,
     }>,
   };
   metrics: {

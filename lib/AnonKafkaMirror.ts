@@ -7,13 +7,14 @@ import { fromJS, List, Map } from "immutable";
 import { KafkaStreams, KStream } from "kafka-streams";
 import Metrics from "./Metrics";
 import { IConfig } from "./types";
-import { arrayMatch, hashString, hashUUID, splitPath } from "./utils";
+import { arrayMatch, hashLuhnString, hashString, hashUUID, splitPath } from "./utils";
 
 const debugLogger = debug("anon-kafka-mirror:mirror");
 
 export const fake = (format: string, type?: string) => {
   if (format === "hashed.uuid" ||
-    format === "hashed.string") {
+    format === "hashed.string" ||
+    format === "luhn.string") {
     return;
   }
   let value: string | number = faker.fake(`{{${format}}}`);
@@ -90,6 +91,8 @@ const parseByKey = (
   type?: string,
   ignoreLeft?: number,
   ignoreRight?: number,
+  prefixLength?: number,
+  prefix?: string,
 ) => {
   if (key && typeof key === "string") {
     if (!key.match(arrayMatch)[2]) {
@@ -106,6 +109,9 @@ const parseByKey = (
             break;
           case "hashed.string":
             keyValue = hashString(keyValue, ignoreLeft, ignoreRight);
+            break;
+          case "luhn.string":
+            keyValue = hashLuhnString(keyValue, prefixLength, prefix);
             break;
           default:
             keyValue = fake(format, type);
@@ -192,7 +198,9 @@ export const mapMessage = (config: IConfig, m: any) => {
         key.format,
         key.type,
         key.ignoreLeft,
-        key.ignoreRight);
+        key.ignoreRight,
+        key.prefixLength,
+        key.prefix);
     });
   }
   let value = outputMessage.get("value");
