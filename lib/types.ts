@@ -29,6 +29,7 @@ export interface IConfig {
       format?: string,
       ignoreLeft?: number,
       ignoreRight?: number,
+      upperCase?: boolean,
     },
     proxy: string[],
     alter: Array<{
@@ -37,6 +38,7 @@ export interface IConfig {
       format?: string,
       ignoreLeft?: number,
       ignoreRight?: number,
+      upperCase?: boolean,
       prefixLength?: number,
       prefix?: string,
     }>,

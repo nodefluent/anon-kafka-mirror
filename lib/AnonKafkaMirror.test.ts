@@ -205,6 +205,25 @@ describe("AnonKafkaMirror", () => {
     expect(hashedString).to.equal("2401293827499");
   });
 
+  it("should map message with hashed.alphanumerical and acknowledge dashes", () => {
+    const config = {
+      topic: {
+        alter: [
+          {
+            name: "someString",
+            type: "string",
+            format: "hashed.alphanumerical",
+            ignoreLeft: 2,
+            upperCase: true,
+          },
+        ],
+      },
+    } as IConfig;
+    const outputMessage = mapMessage(config, { value: { someString: "A-1B2-C3D-4E5" } });
+    const hashedString = JSON.parse(outputMessage.value).someString;
+    expect(hashedString).to.equal("A-NBP-P9B-7PK");
+  });
+
   it("should map message with luhn algorithm and prefix", () => {
     const config = {
       topic: {

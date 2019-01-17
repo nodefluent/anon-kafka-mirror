@@ -67,6 +67,20 @@ export const hashString = (input: string, ignoreLeft?: number, ignoreRight?: num
   return result;
 };
 
+export const hashAlphanumerical = (input: string, ignoreLeft?: number, upperCase?: boolean): string => {
+  const candidate = ignoreLeft ?
+    input.substring(ignoreLeft)
+    : input;
+
+  const parts = candidate.split("-");
+  let hashedParts = parts.map((part: string) => murmurhash.v3(part, 0).toString(36).substring(0, 3));
+  if (upperCase) {
+    hashedParts = hashedParts.map((part: string) => part.toUpperCase());
+  }
+  const result = `${input.substring(0, ignoreLeft)}${hashedParts.join("-")}`;
+  return result;
+};
+
 export const hashLuhnString = (input: string, prefixLength?: number, prefix?: string): string => {
   if (prefixLength) {
     const stringWithoutPrefixAndChecksum = input.substring(prefixLength, input.length - 1);

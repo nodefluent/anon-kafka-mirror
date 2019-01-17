@@ -7,13 +7,14 @@ import { fromJS, List, Map } from "immutable";
 import { KafkaStreams, KStream } from "kafka-streams";
 import Metrics from "./Metrics";
 import { IConfig } from "./types";
-import { arrayMatch, hashLuhnString, hashString, hashUUID, splitPath } from "./utils";
+import { arrayMatch, hashAlphanumerical, hashLuhnString, hashString, hashUUID, splitPath } from "./utils";
 
 const debugLogger = debug("anon-kafka-mirror:mirror");
 
 export const fake = (format: string, type?: string) => {
   if (format === "hashed.uuid" ||
     format === "hashed.string" ||
+    format === "hashed.alphanumerical" ||
     format === "luhn.string") {
     return;
   }
@@ -91,6 +92,7 @@ const parseByKey = (
   type?: string,
   ignoreLeft?: number,
   ignoreRight?: number,
+  upperCase?: boolean,
   prefixLength?: number,
   prefix?: string,
 ) => {
@@ -109,6 +111,9 @@ const parseByKey = (
             break;
           case "hashed.string":
             keyValue = hashString(keyValue, ignoreLeft, ignoreRight);
+            break;
+          case "hashed.alphanumerical":
+            keyValue = hashAlphanumerical(keyValue, ignoreLeft, upperCase);
             break;
           case "luhn.string":
             keyValue = hashLuhnString(keyValue, prefixLength, prefix);
@@ -156,6 +161,9 @@ export const mapMessage = (config: IConfig, m: any) => {
         case "hashed.string":
           keyValue = hashString(keyValue, config.topic.key.ignoreLeft, config.topic.key.ignoreRight);
           break;
+        case "hashed.alphanumerical":
+          keyValue = hashAlphanumerical(keyValue, config.topic.key.ignoreLeft, config.topic.key.upperCase);
+          break;
         default:
           keyValue = fake(config.topic.key.format, config.topic.key.type);
       }
@@ -199,6 +207,7 @@ export const mapMessage = (config: IConfig, m: any) => {
         key.type,
         key.ignoreLeft,
         key.ignoreRight,
+        key.upperCase,
         key.prefixLength,
         key.prefix);
     });
