@@ -58,6 +58,18 @@ exports.hashString = function (input, ignoreLeft, ignoreRight) {
     }
     return result;
 };
+exports.hashAlphanumerical = function (input, ignoreLeft, upperCase) {
+    var candidate = ignoreLeft ?
+        input.substring(ignoreLeft)
+        : input;
+    var parts = candidate.split("-");
+    var hashedParts = parts.map(function (part) { return murmurhash.v3(part, 0).toString(36).substring(0, 3); });
+    if (upperCase) {
+        hashedParts = hashedParts.map(function (part) { return part.toUpperCase(); });
+    }
+    var result = "" + input.substring(0, ignoreLeft) + hashedParts.join("-");
+    return result;
+};
 exports.hashLuhnString = function (input, prefixLength, prefix) {
     if (prefixLength) {
         var stringWithoutPrefixAndChecksum = input.substring(prefixLength, input.length - 1);
