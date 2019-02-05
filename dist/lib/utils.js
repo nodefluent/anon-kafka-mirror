@@ -59,6 +59,9 @@ exports.hashString = function (input, ignoreLeft, ignoreRight) {
     return result;
 };
 exports.hashAlphanumerical = function (input, ignoreLeft, upperCase) {
+    if (!input) {
+        return input;
+    }
     var candidate = ignoreLeft ?
         input.substring(ignoreLeft)
         : input;

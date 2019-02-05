@@ -68,6 +68,10 @@ export const hashString = (input: string, ignoreLeft?: number, ignoreRight?: num
 };
 
 export const hashAlphanumerical = (input: string, ignoreLeft?: number, upperCase?: boolean): string => {
+  if (!input) {
+    return input;
+  }
+
   const candidate = ignoreLeft ?
     input.substring(ignoreLeft)
     : input;
