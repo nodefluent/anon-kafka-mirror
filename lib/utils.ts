@@ -87,6 +87,10 @@ export const hashAlphanumerical = (input: string, ignoreLeft?: number, upperCase
 };
 
 export const hashLuhnString = (input: string, prefixLength?: number, prefix?: string): string => {
+  if (!input) {
+    return input;
+
+  }
   if (prefixLength) {
     const stringWithoutPrefixAndChecksum = input.substring(prefixLength, input.length - 1);
     const hashedNumber = murmurhash.v3(murmurhash.v3(stringWithoutPrefixAndChecksum, 0).toString(), 0).toString();
