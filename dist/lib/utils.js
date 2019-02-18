@@ -31,7 +31,8 @@ exports.hashUUID = function (uuid) {
     return uuid.replace(firstPart, hashedfirstPart).replace(lastPart, hashedlastPart);
 };
 exports.hashString = function (input, ignoreLeft, ignoreRight) {
-    if ((ignoreLeft || 0) + (ignoreRight || 0) >= input.length) {
+    if (!input ||
+        (ignoreLeft || 0) + (ignoreRight || 0) >= input.length) {
         return input;
     }
     var unhashed = input;
