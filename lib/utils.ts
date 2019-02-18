@@ -36,7 +36,8 @@ export const hashUUID = (uuid: string): string => {
 
 export const hashString = (input: string, ignoreLeft?: number, ignoreRight?: number): string => {
 
-  if ((ignoreLeft || 0) + (ignoreRight || 0) >= input.length) {
+  if (!input ||
+    (ignoreLeft || 0) + (ignoreRight || 0) >= input.length) {
     return input;
   }
 
