@@ -32,7 +32,9 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
         var prefixPath_1 = utils_1.splitPath(prefix);
         var keyArray = inputMessage.getIn(prefixPath_1);
         if (immutable_1.List.isList(keyArray)) {
-            map = map.setIn(prefixPath_1, immutable_1.List());
+            if (!map.hasIn(prefixPath_1)) {
+                map = map.setIn(prefixPath_1, immutable_1.List());
+            }
             var newListIndex_1 = 0;
             keyArray.forEach(function (v, i) {
                 var keyPath = prefixPath_1.concat([i]);
