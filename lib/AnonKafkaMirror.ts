@@ -42,7 +42,9 @@ const parseArrayByKey = (
     const prefixPath = splitPath(prefix);
     const keyArray = inputMessage.getIn(prefixPath);
     if (List.isList(keyArray)) {
-      map = map.setIn(prefixPath, List());
+      if (!map.hasIn(prefixPath)) {
+        map = map.setIn(prefixPath, List());
+      }
       let newListIndex = 0;
       keyArray.forEach((v, i) => {
         let keyPath = prefixPath.concat([i]);

@@ -33,7 +33,8 @@ describe("AnonKafkaMirror", () => {
           proxy: [
             "test",
             "a[*]",
-            "b[*].c",
+            "b[*]c",
+            "b[*]d",
             "c[*][*]",
             "d[*][*].e",
             "f[*].g[*]",
@@ -47,8 +48,8 @@ describe("AnonKafkaMirror", () => {
       expect(mapMessage(config, { value: { a: 1 } })).to.deep.equal({ key: null, value: "{}" });
       expect(mapMessage(config, { value: { test: 1 } })).to.deep.equal({ key: null, value: "{\"test\":1}" });
       expect(mapMessage(config, { value: { a: [1, 2, 3] } })).to.deep.equal({ key: null, value: "{\"a\":[1,2,3]}" });
-      expect(mapMessage(config, { value: { b: [{ c: 1 }] } }))
-        .to.deep.equal({ key: null, value: "{\"b\":[{\"c\":1}]}" });
+      expect(mapMessage(config, { value: { b: [{ c: 1, d: 2 }] } }))
+        .to.deep.equal({ key: null, value: "{\"b\":[{\"c\":1,\"d\":2}]}" });
       expect(mapMessage(config, { value: { c: [[1], [2, 3]] } }))
         .to.deep.equal({ key: null, value: "{\"c\":[[1],[2,3]]}" });
     });
