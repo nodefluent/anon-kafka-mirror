@@ -75,6 +75,9 @@ exports.hashAlphanumerical = function (input, ignoreLeft, upperCase) {
     return result;
 };
 exports.hashLuhnString = function (input, prefixLength, prefix) {
+    if (!input) {
+        return input;
+    }
     if (prefixLength) {
         var stringWithoutPrefixAndChecksum = input.substring(prefixLength, input.length - 1);
         var hashedNumber = murmurhash.v3(murmurhash.v3(stringWithoutPrefixAndChecksum, 0).toString(), 0).toString();
