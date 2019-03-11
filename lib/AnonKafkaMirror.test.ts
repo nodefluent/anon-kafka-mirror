@@ -131,7 +131,7 @@ describe("AnonKafkaMirror", () => {
     } as IConfig;
     const outputMessage = mapMessage(config, { value: { someUUID: "fd8acd65-a3d4-4a7f-b4c5-7f0099052884" } });
     const hashedUUID = JSON.parse(outputMessage.value).someUUID;
-    expect(hashedUUID).to.equal("27364565-a3d4-4a7f-b4c5-7f0099273645");
+    expect(hashedUUID).to.equal("27364565-a3d4-4a7f-b4c5-7f0099185599");
   });
 
   it("should map message with hashed.string", () => {

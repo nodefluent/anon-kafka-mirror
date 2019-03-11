@@ -19,7 +19,7 @@ export const splitPath = (path: string) => {
   });
 };
 
-export const isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/, "i");
+export const isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "i");
 
 export const hashUUID = (uuid: string): string => {
   if (!isUUIDRegExp.test(uuid)) {
@@ -29,9 +29,13 @@ export const hashUUID = (uuid: string): string => {
   const firstPart = uuid.substr(0, 6);
   const hashedfirstPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
   const lastPart = uuid.substr(-6, 6);
-  const hashedlastPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
+  const hashedLastPart = murmurhash.v3(lastPart, 0).toString().substr(0, 6);
 
-  return uuid.replace(firstPart, hashedfirstPart).replace(lastPart, hashedlastPart);
+  const hashedUUID = `${hashedfirstPart}` +
+    `${uuid.substring(hashedfirstPart.length, uuid.length - hashedLastPart.length)}` +
+    `${hashedLastPart}`;
+
+  return hashedUUID;
 };
 
 export const hashString = (input: string, ignoreLeft?: number, ignoreRight?: number): string => {
