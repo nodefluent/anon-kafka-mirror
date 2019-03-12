@@ -117,6 +117,28 @@ describe("AnonKafkaMirror", () => {
     });
   });
 
+  it("should map message with hashed.queryParam", () => {
+    const config = {
+      topic: {
+        alter: [
+          {
+            name: "someURL",
+            type: "string",
+            format: "hashed.queryParam",
+            paramName: "param",
+            paramFormat: "hashed.uuid",
+          },
+        ],
+      },
+    } as IConfig;
+    const outputMessage = mapMessage(
+      config,
+      { value: { someURL: "/home/page?queryParam=e3712624-2373-4316-95d0-04a4c18845fa" } },
+    );
+    const urlWithHashedParam = JSON.parse(outputMessage.value).someURL;
+    expect(urlWithHashedParam).to.equal("/home/page?queryParam=e3712624-2373-4316-95d0-04a4c18845fa");
+  });
+
   it("should map message with hashed.uuid", () => {
     const config = {
       topic: {

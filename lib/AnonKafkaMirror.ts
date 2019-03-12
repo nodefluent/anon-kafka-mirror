@@ -7,7 +7,15 @@ import { fromJS, List, Map } from "immutable";
 import { KafkaStreams, KStream } from "kafka-streams";
 import Metrics from "./Metrics";
 import { IConfig } from "./types";
-import { arrayMatch, hashAlphanumerical, hashLuhnString, hashString, hashUUID, splitPath } from "./utils";
+import {
+  arrayMatch,
+  hashAlphanumerical,
+  hashLuhnString,
+  hashString,
+  hashUUID,
+  hashQueryParam,
+  splitPath
+} from "./utils";
 
 const debugLogger = debug("anon-kafka-mirror:mirror");
 
@@ -15,6 +23,7 @@ export const fake = (format: string, type?: string) => {
   if (format === "hashed.uuid" ||
     format === "hashed.string" ||
     format === "hashed.alphanumerical" ||
+    format === "hashed.queryParam" ||
     format === "luhn.string") {
     return;
   }
@@ -97,6 +106,8 @@ const parseByKey = (
   upperCase?: boolean,
   prefixLength?: number,
   prefix?: string,
+  paramName?: string,
+  paramFormat?: string,
 ) => {
   if (key && typeof key === "string") {
     if (!key.match(arrayMatch)[2]) {
@@ -113,6 +124,9 @@ const parseByKey = (
             break;
           case "hashed.string":
             keyValue = hashString(keyValue, ignoreLeft, ignoreRight);
+            break;
+          case "hashed.queryParam":
+            keyValue = hashQueryParam(keyValue, paramName, paramFormat);
             break;
           case "hashed.alphanumerical":
             keyValue = hashAlphanumerical(keyValue, ignoreLeft, upperCase);
@@ -211,7 +225,9 @@ export const mapMessage = (config: IConfig, m: any) => {
         key.ignoreRight,
         key.upperCase,
         key.prefixLength,
-        key.prefix);
+        key.prefix,
+        key.paramName,
+        key.paramFormat);
     });
   }
   let value = outputMessage.get("value");

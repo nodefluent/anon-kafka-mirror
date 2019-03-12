@@ -38,6 +38,33 @@ export const hashUUID = (uuid: string): string => {
   return hashedUUID;
 };
 
+export const hashQueryParam = (input: string, paramName?: string, paramFormat?: string): string => {
+
+  if (!input ||
+    !paramName ||
+    !paramFormat) {
+    return input;
+  }
+
+  const url = new URL(input, "https://www.github.com");
+  const paramValue = url.searchParams.get(paramName);
+  if (!paramValue) {
+    return input;
+  }
+
+  let hashedValue;
+  switch (paramFormat) {
+    case "hashed.uuid":
+      hashedValue = hashUUID(paramValue);
+      break;
+    default:
+      return input;
+  }
+
+  const result = input.replace(paramValue, hashedValue);
+  return result;
+};
+
 export const hashString = (input: string, ignoreLeft?: number, ignoreRight?: number): string => {
 
   if (!input ||
