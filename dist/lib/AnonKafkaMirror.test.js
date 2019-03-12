@@ -110,6 +110,24 @@ describe("AnonKafkaMirror", function () {
             chai_1.expect(value.b).to.be.not.ok;
         });
     });
+    it("should map message with hashed.queryParam", function () {
+        var config = {
+            topic: {
+                alter: [
+                    {
+                        name: "someURL",
+                        type: "string",
+                        format: "hashed.queryParam",
+                        paramName: "param",
+                        paramFormat: "hashed.uuid",
+                    },
+                ],
+            },
+        };
+        var outputMessage = AnonKafkaMirror_1.mapMessage(config, { value: { someURL: "/home/page?queryParam=e3712624-2373-4316-95d0-04a4c18845fa" } });
+        var urlWithHashedParam = JSON.parse(outputMessage.value).someURL;
+        chai_1.expect(urlWithHashedParam).to.equal("/home/page?queryParam=e3712624-2373-4316-95d0-04a4c18845fa");
+    });
     it("should map message with hashed.uuid", function () {
         var config = {
             topic: {
@@ -124,7 +142,7 @@ describe("AnonKafkaMirror", function () {
         };
         var outputMessage = AnonKafkaMirror_1.mapMessage(config, { value: { someUUID: "fd8acd65-a3d4-4a7f-b4c5-7f0099052884" } });
         var hashedUUID = JSON.parse(outputMessage.value).someUUID;
-        chai_1.expect(hashedUUID).to.equal("27364565-a3d4-4a7f-b4c5-7f0099273645");
+        chai_1.expect(hashedUUID).to.equal("27364565-a3d4-4a7f-b4c5-7f0099185599");
     });
     it("should map message with hashed.string", function () {
         var config = {

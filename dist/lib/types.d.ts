@@ -40,6 +40,8 @@ export interface IConfig {
             upperCase?: boolean;
             prefixLength?: number;
             prefix?: string;
+            paramName?: string;
+            paramFormat?: string;
         }>;
     };
     metrics: {

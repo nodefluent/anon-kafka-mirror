@@ -19,7 +19,7 @@ exports.splitPath = function (path) {
         }
     });
 };
-exports.isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/, "i");
+exports.isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "i");
 exports.hashUUID = function (uuid) {
     if (!exports.isUUIDRegExp.test(uuid)) {
         return uuid;
@@ -27,8 +27,33 @@ exports.hashUUID = function (uuid) {
     var firstPart = uuid.substr(0, 6);
     var hashedfirstPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
     var lastPart = uuid.substr(-6, 6);
-    var hashedlastPart = murmurhash.v3(firstPart, 0).toString().substr(0, 6);
-    return uuid.replace(firstPart, hashedfirstPart).replace(lastPart, hashedlastPart);
+    var hashedLastPart = murmurhash.v3(lastPart, 0).toString().substr(0, 6);
+    var hashedUUID = "" + hashedfirstPart +
+        ("" + uuid.substring(hashedfirstPart.length, uuid.length - hashedLastPart.length)) +
+        ("" + hashedLastPart);
+    return hashedUUID;
+};
+exports.hashQueryParam = function (input, paramName, paramFormat) {
+    if (!input ||
+        !paramName ||
+        !paramFormat) {
+        return input;
+    }
+    var url = new URL(input, "https://www.github.com");
+    var paramValue = url.searchParams.get(paramName);
+    if (!paramValue) {
+        return input;
+    }
+    var hashedValue;
+    switch (paramFormat) {
+        case "hashed.uuid":
+            hashedValue = exports.hashUUID(paramValue);
+            break;
+        default:
+            return input;
+    }
+    var result = input.replace(paramValue, hashedValue);
+    return result;
 };
 exports.hashString = function (input, ignoreLeft, ignoreRight) {
     if (!input ||

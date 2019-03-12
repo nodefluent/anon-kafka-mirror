@@ -12,6 +12,7 @@ exports.fake = function (format, type) {
     if (format === "hashed.uuid" ||
         format === "hashed.string" ||
         format === "hashed.alphanumerical" ||
+        format === "hashed.queryParam" ||
         format === "luhn.string") {
         return;
     }
@@ -78,7 +79,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
     }
     return map;
 };
-var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ignoreRight, upperCase, prefixLength, prefix) {
+var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ignoreRight, upperCase, prefixLength, prefix, paramName, paramFormat) {
     if (key && typeof key === "string") {
         if (!key.match(utils_1.arrayMatch)[2]) {
             var keyPath = utils_1.splitPath(key);
@@ -95,6 +96,9 @@ var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ign
                         break;
                     case "hashed.string":
                         keyValue = utils_1.hashString(keyValue, ignoreLeft, ignoreRight);
+                        break;
+                    case "hashed.queryParam":
+                        keyValue = utils_1.hashQueryParam(keyValue, paramName, paramFormat);
                         break;
                     case "hashed.alphanumerical":
                         keyValue = utils_1.hashAlphanumerical(keyValue, ignoreLeft, upperCase);
@@ -177,7 +181,7 @@ exports.mapMessage = function (config, m) {
     }
     if (config.topic.alter && config.topic.alter instanceof Array) {
         config.topic.alter.forEach(function (key) {
-            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type, key.ignoreLeft, key.ignoreRight, key.upperCase, key.prefixLength, key.prefix);
+            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type, key.ignoreLeft, key.ignoreRight, key.upperCase, key.prefixLength, key.prefix, key.paramName, key.paramFormat);
         });
     }
     var value = outputMessage.get("value");
