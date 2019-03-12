@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var murmurhash = require("murmurhash");
+var url_1 = require("url");
 exports.arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
 exports.splitPath = function (path) {
     if (!path) {
@@ -39,7 +40,7 @@ exports.hashQueryParam = function (input, paramName, paramFormat) {
         !paramFormat) {
         return input;
     }
-    var url = new URL(input, "https://www.github.com");
+    var url = new url_1.URL(input, "https://www.github.com");
     var paramValue = url.searchParams.get(paramName);
     if (!paramValue) {
         return input;

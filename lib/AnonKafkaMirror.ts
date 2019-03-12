@@ -5,16 +5,17 @@ import * as express from "express";
 import * as faker from "faker";
 import { fromJS, List, Map } from "immutable";
 import { KafkaStreams, KStream } from "kafka-streams";
+
 import Metrics from "./Metrics";
 import { IConfig } from "./types";
 import {
   arrayMatch,
   hashAlphanumerical,
   hashLuhnString,
+  hashQueryParam,
   hashString,
   hashUUID,
-  hashQueryParam,
-  splitPath
+  splitPath,
 } from "./utils";
 
 const debugLogger = debug("anon-kafka-mirror:mirror");

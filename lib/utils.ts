@@ -1,4 +1,5 @@
 import * as murmurhash from "murmurhash";
+import { URL } from "url";
 
 export const arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
 
