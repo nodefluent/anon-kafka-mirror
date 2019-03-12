@@ -133,10 +133,10 @@ describe("AnonKafkaMirror", () => {
     } as IConfig;
     const outputMessage = mapMessage(
       config,
-      { value: { someURL: "/home/page?queryParam=e3712624-2373-4316-95d0-04a4c18845fa" } },
+      { value: { someURL: "/home/page?param=e3712624-2373-4316-95d0-04a4c18845fa" } },
     );
     const urlWithHashedParam = JSON.parse(outputMessage.value).someURL;
-    expect(urlWithHashedParam).to.equal("/home/page?queryParam=e3712624-2373-4316-95d0-04a4c18845fa");
+    expect(urlWithHashedParam).to.equal("/home/page?param=38965224-2373-4316-95d0-04a4c1286198");
   });
 
   it("should map message with hashed.uuid", () => {
