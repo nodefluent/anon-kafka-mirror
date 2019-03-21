@@ -173,13 +173,13 @@ export const mapMessage = (config: IConfig, m: any) => {
         case undefined:
           break;
         case "hashed.uuid":
-          keyValue = hashUUID(keyValue);
+          keyValue = hashUUID(m.key);
           break;
         case "hashed.string":
-          keyValue = hashString(keyValue, config.topic.key.ignoreLeft, config.topic.key.ignoreRight);
+          keyValue = hashString(m.key, config.topic.key.ignoreLeft, config.topic.key.ignoreRight);
           break;
         case "hashed.alphanumerical":
-          keyValue = hashAlphanumerical(keyValue, config.topic.key.ignoreLeft, config.topic.key.upperCase);
+          keyValue = hashAlphanumerical(m.key, config.topic.key.ignoreLeft, config.topic.key.upperCase);
           break;
         default:
           keyValue = fake(config.topic.key.format, config.topic.key.type);

@@ -24,6 +24,18 @@ describe("AnonKafkaMirror", function () {
                 },
             }, { key: "123" })).to.be.deep.equal({ key: "123", value: null });
         });
+        it("should alter key based on the config", function () {
+            chai_1.expect(AnonKafkaMirror_1.mapMessage({
+                topic: {
+                    key: {
+                        proxy: false,
+                        type: "string",
+                        format: "hashed.uuid",
+                    },
+                },
+            }, { key: "9ad4722c-0b5b-47e5-8d23-8122b0bc29c5", value: null }))
+                .to.be.deep.equal({ key: "2904842c-0b5b-47e5-8d23-8122b0328437", value: null });
+        });
         it("should proxy message based on the config", function () {
             var config = {
                 topic: {
@@ -124,9 +136,9 @@ describe("AnonKafkaMirror", function () {
                 ],
             },
         };
-        var outputMessage = AnonKafkaMirror_1.mapMessage(config, { value: { someURL: "/home/page?queryParam=e3712624-2373-4316-95d0-04a4c18845fa" } });
+        var outputMessage = AnonKafkaMirror_1.mapMessage(config, { value: { someURL: "/home/page?param=e3712624-2373-4316-95d0-04a4c18845fa" } });
         var urlWithHashedParam = JSON.parse(outputMessage.value).someURL;
-        chai_1.expect(urlWithHashedParam).to.equal("/home/page?queryParam=e3712624-2373-4316-95d0-04a4c18845fa");
+        chai_1.expect(urlWithHashedParam).to.equal("/home/page?param=38965224-2373-4316-95d0-04a4c1286198");
     });
     it("should map message with hashed.uuid", function () {
         var config = {

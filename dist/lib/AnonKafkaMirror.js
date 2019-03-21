@@ -143,13 +143,13 @@ exports.mapMessage = function (config, m) {
                 case undefined:
                     break;
                 case "hashed.uuid":
-                    keyValue = utils_1.hashUUID(keyValue);
+                    keyValue = utils_1.hashUUID(m.key);
                     break;
                 case "hashed.string":
-                    keyValue = utils_1.hashString(keyValue, config.topic.key.ignoreLeft, config.topic.key.ignoreRight);
+                    keyValue = utils_1.hashString(m.key, config.topic.key.ignoreLeft, config.topic.key.ignoreRight);
                     break;
                 case "hashed.alphanumerical":
-                    keyValue = utils_1.hashAlphanumerical(keyValue, config.topic.key.ignoreLeft, config.topic.key.upperCase);
+                    keyValue = utils_1.hashAlphanumerical(m.key, config.topic.key.ignoreLeft, config.topic.key.upperCase);
                     break;
                 default:
                     keyValue = exports.fake(config.topic.key.format, config.topic.key.type);

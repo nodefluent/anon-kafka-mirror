@@ -27,6 +27,19 @@ describe("AnonKafkaMirror", () => {
       } as IConfig, { key: "123" })).to.be.deep.equal({ key: "123", value: null });
     });
 
+    it("should alter key based on the config", () => {
+      expect(mapMessage({
+        topic: {
+          key: {
+            proxy: false,
+            type: "string",
+            format: "hashed.uuid",
+          },
+        },
+      } as IConfig, { key: "9ad4722c-0b5b-47e5-8d23-8122b0bc29c5", value: null }))
+        .to.be.deep.equal({ key: "2904842c-0b5b-47e5-8d23-8122b0328437", value: null });
+    });
+
     it("should proxy message based on the config", () => {
       const config = {
         topic: {
