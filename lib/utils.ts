@@ -47,7 +47,14 @@ export const hashQueryParam = (input: string, paramName?: string, paramFormat?: 
     return input;
   }
 
-  const url = new URL(input, "https://www.github.com");
+  let url;
+  // try {
+  url = new URL(input, "https://www.github.com");
+  // } catch (error) {
+  // swallow any invalid url and return the input
+  //   return input;
+  // }
+
   const paramValue = url.searchParams.get(paramName);
   if (!paramValue) {
     return input;
