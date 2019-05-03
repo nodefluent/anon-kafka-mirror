@@ -47,10 +47,12 @@ describe("AnonKafkaMirror", () => {
             "test",
             "a[*]",
             "b[*]c",
-            "b[*]d",
+            "b[*].d",
             "c[*][*]",
-            "d[*][*].e",
-            "f[*].g[*]",
+            "d[*][*]e",
+            "d[*][*].f",
+            "g[*]h[*]",
+            "i[*].j[*]",
           ],
         },
       } as IConfig;
@@ -59,12 +61,21 @@ describe("AnonKafkaMirror", () => {
       expect(mapMessage(config, { value: null })).to.deep.equal({ key: null, value: null });
       expect(mapMessage(config, { value: {} })).to.deep.equal({ key: null, value: "{}" });
       expect(mapMessage(config, { value: { a: 1 } })).to.deep.equal({ key: null, value: "{}" });
+
       expect(mapMessage(config, { value: { test: 1 } })).to.deep.equal({ key: null, value: "{\"test\":1}" });
       expect(mapMessage(config, { value: { a: [1, 2, 3] } })).to.deep.equal({ key: null, value: "{\"a\":[1,2,3]}" });
-      expect(mapMessage(config, { value: { b: [{ c: 1, d: 2 }] } }))
+      expect(mapMessage(config, { value: { b: [{ c: 1, d: 2, x: 3 }] } }))
         .to.deep.equal({ key: null, value: "{\"b\":[{\"c\":1,\"d\":2}]}" });
       expect(mapMessage(config, { value: { c: [[1], [2, 3]] } }))
         .to.deep.equal({ key: null, value: "{\"c\":[[1],[2,3]]}" });
+      expect(mapMessage(config, { value: { d: [[{ e: 1, x: 2 }], [{ e: 2, x: 3 }, { e: 3, x: 4 }]] } }))
+        .to.deep.equal({ key: null, value: "{\"d\":[[{\"e\":1}],[{\"e\":2},{\"e\":3}]]}" });
+      expect(mapMessage(config, { value: { d: [[{ f: 1, x: 2 }], [{ f: 2, x: 3 }, { f: 3, x: 4 }]] } }))
+        .to.deep.equal({ key: null, value: "{\"d\":[[{\"f\":1}],[{\"f\":2},{\"f\":3}]]}" });
+      expect(mapMessage(config, { value: { g: [{ h: [1, 2] }, { y: [2, 3] }] } }))
+        .to.deep.equal({ key: null, value: "{\"g\":[{\"h\":[1,2]}]}" });
+      expect(mapMessage(config, { value: { i: [{ j: [1, 2] }, { y: [2, 3] }] } }))
+        .to.deep.equal({ key: null, value: "{\"i\":[{\"j\":[1,2]}]}" });
     });
 
     it("should map message with y[*]", () => {
@@ -87,25 +98,42 @@ describe("AnonKafkaMirror", () => {
       expect(y[1]).to.be.an("number");
     });
 
-    it("should map message with x[*]x", () => {
+    it("should map message with x[*]y", () => {
       const config = {
         topic: {
           alter: [
             {
-              name: "x[*]x",
+              name: "x[*]y",
               type: "integer",
               format: "random.number",
             },
           ],
         },
       } as IConfig;
-      const outputMessage = mapMessage(config, { value: { x: [{ x: 1 }, { a: 1 }, { b: "" }] } });
+      const outputMessage = mapMessage(config, { value: { x: [{ y: 1 }, { a: 1 }, { b: "" }] } });
       expect(outputMessage.key).to.be.equal(null);
       const value = JSON.parse(outputMessage.value);
       expect(value.x.length).to.be.equal(1);
-      expect(value.x[0].x).to.be.an("number");
-      expect(value.x[1]).to.be.not.ok;
-      expect(value.x[2]).to.be.not.ok;
+      expect(value.x[0].y).to.be.a("number");
+    });
+
+    it("should map message with x[*].x", () => {
+      const config = {
+        topic: {
+          alter: [
+            {
+              name: "x[*].y",
+              type: "integer",
+              format: "random.number",
+            },
+          ],
+        },
+      } as IConfig;
+      const outputMessage = mapMessage(config, { value: { x: [{ y: 1 }, { a: 1 }, { b: "" }] } });
+      expect(outputMessage.key).to.be.equal(null);
+      const value = JSON.parse(outputMessage.value);
+      expect(value.x).to.have.length(1);
+      expect(value.x[0].y).to.be.a("number");
     });
 
     it("should map message with z[*][*]", () => {
