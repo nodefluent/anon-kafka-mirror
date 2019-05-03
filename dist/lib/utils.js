@@ -40,7 +40,8 @@ exports.hashQueryParam = function (input, paramName, paramFormat) {
         !paramFormat) {
         return input;
     }
-    var url = new url_1.URL(input, "https://www.github.com");
+    var url;
+    url = new url_1.URL(input, "https://www.github.com");
     var paramValue = url.searchParams.get(paramName);
     if (!paramValue) {
         return input;

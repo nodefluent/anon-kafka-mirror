@@ -8,7 +8,7 @@ var kafka_streams_1 = require("kafka-streams");
 var Metrics_1 = require("./Metrics");
 var utils_1 = require("./utils");
 var debugLogger = debug_1.default("anon-kafka-mirror:mirror");
-exports.fake = function (format, type) {
+var fake = function (format, type) {
     if (format === "hashed.uuid" ||
         format === "hashed.string" ||
         format === "hashed.alphanumerical" ||
@@ -24,13 +24,34 @@ exports.fake = function (format, type) {
     }
     return value;
 };
-var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
+var transform = function (format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix) {
+    switch (format) {
+        case "hashed.uuid":
+            return utils_1.hashUUID(keyValue);
+            break;
+        case "hashed.string":
+            return utils_1.hashString(keyValue, ignoreLeft, ignoreRight);
+            break;
+        case "hashed.queryParam":
+            return utils_1.hashQueryParam(keyValue, paramName, paramFormat);
+            break;
+        case "hashed.alphanumerical":
+            return utils_1.hashAlphanumerical(keyValue, ignoreLeft, upperCase);
+            break;
+        case "luhn.string":
+            return utils_1.hashLuhnString(keyValue, prefixLength, prefix);
+            break;
+        default:
+            return fake(format, type);
+    }
+};
+var parseArrayByKey = function (key, map, s, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix) {
     if (s === void 0) { s = ""; }
     var keyPathMatch = key.match(utils_1.arrayMatch);
-    var prefix = keyPathMatch[1];
+    var pathPrefix = keyPathMatch[1];
     var suffix = s || keyPathMatch[3];
-    if (prefix) {
-        var prefixPath_1 = utils_1.splitPath(prefix);
+    if (pathPrefix) {
+        var prefixPath_1 = utils_1.splitPath(pathPrefix);
         var keyArray = inputMessage.getIn(prefixPath_1);
         if (immutable_1.List.isList(keyArray)) {
             if (!map.hasIn(prefixPath_1)) {
@@ -42,7 +63,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
                 var newListPath = prefixPath_1.concat([newListIndex_1]);
                 var prefixValue = inputMessage.getIn(keyPath);
                 if (immutable_1.List.isList(prefixValue)) {
-                    map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage, format, type);
+                    map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
                 }
                 else {
                     if (suffix) {
@@ -58,7 +79,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
                         if (immutable_1.Map.isMap(keyValue)) {
                             var mapValue = keyValue.getIn(utils_1.splitPath(suffix));
                             if (format) {
-                                mapValue = exports.fake(format, type);
+                                mapValue = transform(format, mapValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
                             }
                             if (mapValue !== undefined) {
                                 map = map.setIn(newListPath, mapValue);
@@ -67,7 +88,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type) {
                         }
                         else {
                             if (format) {
-                                keyValue = exports.fake(format, type);
+                                keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
                             }
                             map = map.setIn(newListPath, keyValue);
                             newListIndex_1 += 1;
@@ -88,32 +109,14 @@ var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ign
                 map = map.setIn(keyPath, null);
             }
             else if (keyValue !== undefined) {
-                switch (format) {
-                    case undefined:
-                        break;
-                    case "hashed.uuid":
-                        keyValue = utils_1.hashUUID(keyValue);
-                        break;
-                    case "hashed.string":
-                        keyValue = utils_1.hashString(keyValue, ignoreLeft, ignoreRight);
-                        break;
-                    case "hashed.queryParam":
-                        keyValue = utils_1.hashQueryParam(keyValue, paramName, paramFormat);
-                        break;
-                    case "hashed.alphanumerical":
-                        keyValue = utils_1.hashAlphanumerical(keyValue, ignoreLeft, upperCase);
-                        break;
-                    case "luhn.string":
-                        keyValue = utils_1.hashLuhnString(keyValue, prefixLength, prefix);
-                        break;
-                    default:
-                        keyValue = exports.fake(format, type);
+                if (format) {
+                    keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
                 }
                 map = map.setIn(keyPath, keyValue);
             }
         }
         else {
-            map = parseArrayByKey(key, map, undefined, inputMessage, format, type);
+            map = parseArrayByKey(key, map, undefined, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
         }
     }
     return map;
@@ -138,22 +141,7 @@ exports.mapMessage = function (config, m) {
     }
     if (config.topic.key && config.topic.key.proxy === false) {
         if (config.topic.key.format) {
-            var keyValue = void 0;
-            switch (config.topic.key.format) {
-                case undefined:
-                    break;
-                case "hashed.uuid":
-                    keyValue = utils_1.hashUUID(m.key);
-                    break;
-                case "hashed.string":
-                    keyValue = utils_1.hashString(m.key, config.topic.key.ignoreLeft, config.topic.key.ignoreRight);
-                    break;
-                case "hashed.alphanumerical":
-                    keyValue = utils_1.hashAlphanumerical(m.key, config.topic.key.ignoreLeft, config.topic.key.upperCase);
-                    break;
-                default:
-                    keyValue = exports.fake(config.topic.key.format, config.topic.key.type);
-            }
+            var keyValue = transform(config.topic.key.format, m.key, config.topic.key.type, config.topic.key.ignoreLeft, config.topic.key.ignoreRight, config.topic.key.paramName, config.topic.key.paramFormat, config.topic.key.upperCase, config.topic.key.prefixLength, config.topic.key.prefix);
             if (keyValue) {
                 outputMessage = outputMessage.set("key", keyValue);
             }

@@ -20,7 +20,7 @@ import {
 
 const debugLogger = debug("anon-kafka-mirror:mirror");
 
-export const fake = (format: string, type?: string) => {
+const fake = (format: string, type?: string) => {
   if (format === "hashed.uuid" ||
     format === "hashed.string" ||
     format === "hashed.alphanumerical" ||
@@ -37,6 +37,38 @@ export const fake = (format: string, type?: string) => {
   return value;
 };
 
+const transform = (
+  format: string,
+  keyValue: any,
+  type?: string,
+  ignoreLeft?: number,
+  ignoreRight?: number,
+  paramName?: string,
+  paramFormat?: string,
+  upperCase?: boolean,
+  prefixLength?: number,
+  prefix?: string) => {
+  switch (format) {
+    case "hashed.uuid":
+      return hashUUID(keyValue);
+      break;
+    case "hashed.string":
+      return hashString(keyValue, ignoreLeft, ignoreRight);
+      break;
+    case "hashed.queryParam":
+      return hashQueryParam(keyValue, paramName, paramFormat);
+      break;
+    case "hashed.alphanumerical":
+      return hashAlphanumerical(keyValue, ignoreLeft, upperCase);
+      break;
+    case "luhn.string":
+      return hashLuhnString(keyValue, prefixLength, prefix);
+      break;
+    default:
+      return fake(format, type);
+  }
+};
+
 const parseArrayByKey = (
   key: string,
   map: Map<string, any>,
@@ -44,12 +76,19 @@ const parseArrayByKey = (
   inputMessage: Map<string, any>,
   format?: string,
   type?: string,
+  ignoreLeft?: number,
+  ignoreRight?: number,
+  paramName?: string,
+  paramFormat?: string,
+  upperCase?: boolean,
+  prefixLength?: number,
+  prefix?: string,
 ) => {
   const keyPathMatch = key.match(arrayMatch);
-  const prefix = keyPathMatch[1];
+  const pathPrefix = keyPathMatch[1];
   const suffix = s || keyPathMatch[3];
-  if (prefix) {
-    const prefixPath = splitPath(prefix);
+  if (pathPrefix) {
+    const prefixPath = splitPath(pathPrefix);
     const keyArray = inputMessage.getIn(prefixPath);
     if (List.isList(keyArray)) {
       if (!map.hasIn(prefixPath)) {
@@ -61,7 +100,20 @@ const parseArrayByKey = (
         let newListPath = prefixPath.concat([newListIndex]);
         const prefixValue = inputMessage.getIn(keyPath);
         if (List.isList(prefixValue)) {
-          map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage, format, type);
+          map = parseArrayByKey(
+            keyPath.join("."),
+            map,
+            suffix,
+            inputMessage,
+            format,
+            type,
+            ignoreLeft,
+            ignoreRight,
+            paramName,
+            paramFormat,
+            upperCase,
+            prefixLength,
+            prefix);
         } else {
           if (suffix) {
             keyPath = keyPath.concat(splitPath(suffix));
@@ -75,7 +127,17 @@ const parseArrayByKey = (
             if (Map.isMap(keyValue)) {
               let mapValue = keyValue.getIn(splitPath(suffix));
               if (format) {
-                mapValue = fake(format, type);
+                mapValue = transform(
+                  format,
+                  mapValue,
+                  type,
+                  ignoreLeft,
+                  ignoreRight,
+                  paramName,
+                  paramFormat,
+                  upperCase,
+                  prefixLength,
+                  prefix);
               }
               if (mapValue !== undefined) {
                 map = map.setIn(newListPath, mapValue);
@@ -83,7 +145,17 @@ const parseArrayByKey = (
               }
             } else {
               if (format) {
-                keyValue = fake(format, type);
+                keyValue = transform(
+                  format,
+                  keyValue,
+                  type,
+                  ignoreLeft,
+                  ignoreRight,
+                  paramName,
+                  paramFormat,
+                  upperCase,
+                  prefixLength,
+                  prefix);
               }
               map = map.setIn(newListPath, keyValue);
               newListIndex += 1;
@@ -117,31 +189,36 @@ const parseByKey = (
       if (keyValue === null) {
         map = map.setIn(keyPath, null);
       } else if (keyValue !== undefined) {
-        switch (format) {
-          case undefined:
-            break;
-          case "hashed.uuid":
-            keyValue = hashUUID(keyValue);
-            break;
-          case "hashed.string":
-            keyValue = hashString(keyValue, ignoreLeft, ignoreRight);
-            break;
-          case "hashed.queryParam":
-            keyValue = hashQueryParam(keyValue, paramName, paramFormat);
-            break;
-          case "hashed.alphanumerical":
-            keyValue = hashAlphanumerical(keyValue, ignoreLeft, upperCase);
-            break;
-          case "luhn.string":
-            keyValue = hashLuhnString(keyValue, prefixLength, prefix);
-            break;
-          default:
-            keyValue = fake(format, type);
+        if (format) {
+          keyValue = transform(
+            format,
+            keyValue,
+            type,
+            ignoreLeft,
+            ignoreRight,
+            paramName,
+            paramFormat,
+            upperCase,
+            prefixLength,
+            prefix);
         }
         map = map.setIn(keyPath, keyValue);
       }
     } else {
-      map = parseArrayByKey(key, map, undefined, inputMessage, format, type);
+      map = parseArrayByKey(
+        key,
+        map,
+        undefined,
+        inputMessage,
+        format,
+        type,
+        ignoreLeft,
+        ignoreRight,
+        paramName,
+        paramFormat,
+        upperCase,
+        prefixLength,
+        prefix);
     }
   }
   return map;
@@ -168,22 +245,17 @@ export const mapMessage = (config: IConfig, m: any) => {
 
   if (config.topic.key && config.topic.key.proxy === false) {
     if (config.topic.key.format) {
-      let keyValue;
-      switch (config.topic.key.format) {
-        case undefined:
-          break;
-        case "hashed.uuid":
-          keyValue = hashUUID(m.key);
-          break;
-        case "hashed.string":
-          keyValue = hashString(m.key, config.topic.key.ignoreLeft, config.topic.key.ignoreRight);
-          break;
-        case "hashed.alphanumerical":
-          keyValue = hashAlphanumerical(m.key, config.topic.key.ignoreLeft, config.topic.key.upperCase);
-          break;
-        default:
-          keyValue = fake(config.topic.key.format, config.topic.key.type);
-      }
+      const keyValue = transform(
+        config.topic.key.format,
+        m.key,
+        config.topic.key.type,
+        config.topic.key.ignoreLeft,
+        config.topic.key.ignoreRight,
+        config.topic.key.paramName,
+        config.topic.key.paramFormat,
+        config.topic.key.upperCase,
+        config.topic.key.prefixLength,
+        config.topic.key.prefix);
       if (keyValue) {
         outputMessage = outputMessage.set("key", keyValue);
       }

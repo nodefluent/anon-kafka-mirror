@@ -29,6 +29,10 @@ export interface IConfig {
             ignoreLeft?: number;
             ignoreRight?: number;
             upperCase?: boolean;
+            prefixLength?: number;
+            prefix?: string;
+            paramName?: string;
+            paramFormat?: string;
         };
         proxy: string[];
         alter: Array<{

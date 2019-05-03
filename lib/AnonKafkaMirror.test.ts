@@ -117,6 +117,26 @@ describe("AnonKafkaMirror", () => {
       expect(value.x[0].y).to.be.a("number");
     });
 
+    it("should map message with x.y[*].z", () => {
+      const config = {
+        topic: {
+          alter: [
+            {
+              name: "x.y[*].z",
+              type: "string",
+              format: "hashed.string",
+            },
+          ],
+        },
+      } as IConfig;
+      const outputMessage = mapMessage(config, { value: { x: { y: [{ z: "12345" }] } } });
+      expect(outputMessage.key).to.be.equal(null);
+      const value = JSON.parse(outputMessage.value);
+      expect(value.x).to.be.an("object");
+      expect(value.x.y).to.be.an("array");
+      expect(value.x.y[0].z).to.be.a("string");
+    });
+
     it("should map message with x[*].x", () => {
       const config = {
         topic: {
