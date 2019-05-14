@@ -141,7 +141,7 @@ exports.mapMessage = function (config, m) {
     }
     if (config.topic.key && config.topic.key.proxy === false) {
         if (config.topic.key.format) {
-            var keyValue = transform(config.topic.key.format, m.key, config.topic.key.type, config.topic.key.ignoreLeft, config.topic.key.ignoreRight, config.topic.key.paramName, config.topic.key.paramFormat, config.topic.key.upperCase, config.topic.key.prefixLength, config.topic.key.prefix);
+            var keyValue = transform(config.topic.key.format, inputMessage.get("key"), config.topic.key.type, config.topic.key.ignoreLeft, config.topic.key.ignoreRight, config.topic.key.paramName, config.topic.key.paramFormat, config.topic.key.upperCase, config.topic.key.prefixLength, config.topic.key.prefix);
             if (keyValue) {
                 outputMessage = outputMessage.set("key", keyValue);
             }
