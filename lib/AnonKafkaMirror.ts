@@ -247,7 +247,7 @@ export const mapMessage = (config: IConfig, m: any) => {
     if (config.topic.key.format) {
       const keyValue = transform(
         config.topic.key.format,
-        inputMessage.get("key"),
+        m.key.toString(),
         config.topic.key.type,
         config.topic.key.ignoreLeft,
         config.topic.key.ignoreRight,
