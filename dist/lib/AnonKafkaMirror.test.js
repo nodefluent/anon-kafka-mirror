@@ -36,6 +36,64 @@ describe("AnonKafkaMirror", function () {
             }, { key: "9ad4722c-0b5b-47e5-8d23-8122b0bc29c5", value: null }))
                 .to.be.deep.equal({ key: "2904842c-0b5b-47e5-8d23-8122b0328437", value: null });
         });
+        it("should map messages with multiple levels of nesting", function () {
+            var config = {
+                topic: {
+                    key: {
+                        proxy: true,
+                        type: "string",
+                    },
+                    proxy: [
+                        "a.b.c.d.e",
+                        "a.b.f[*].g",
+                        "a.b.f[*].h[*].i",
+                        "a.b.f[*].h[*].j.k",
+                    ],
+                    alter: [
+                        {
+                            name: "a.b.f[*].l",
+                            type: "string",
+                            format: "hashed.string",
+                        },
+                        {
+                            name: "a.b.f[*].h[*].m",
+                            type: "string",
+                            format: "hashed.string",
+                        },
+                    ],
+                },
+            };
+            var msg = {
+                key: "c7810d50-d607-47e9-9caf-68d07a17fe2a",
+                a: {
+                    b: {
+                        c: {
+                            d: {
+                                e: 1,
+                            },
+                        },
+                        f: [
+                            {
+                                g: "test",
+                                h: [{
+                                        i: "12345",
+                                        j: {
+                                            k: true,
+                                            pickupTime: "2018-03-27T13:42:00Z",
+                                        },
+                                    }],
+                            }
+                        ],
+                    },
+                },
+            };
+            chai_1.expect(AnonKafkaMirror_1.mapMessage(config, { key: msg.key, value: msg }))
+                .to.deep.equal({
+                key: "c7810d50-d607-47e9-9caf-68d07a17fe2a",
+                value: "{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":1}}," +
+                    "\"f\":[{\"g\":\"test\",\"h\":[{\"i\":\"12345\",\"j\":{\"k\":true}}]}]}}}",
+            });
+        });
         it("should proxy message based on the config", function () {
             var config = {
                 topic: {

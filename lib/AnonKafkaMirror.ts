@@ -17,6 +17,7 @@ import {
   hashUUID,
   splitPath,
 } from "./utils";
+import { join } from "path";
 
 const debugLogger = debug("anon-kafka-mirror:mirror");
 
@@ -143,6 +144,24 @@ const parseArrayByKey = (
                 map = map.setIn(newListPath, mapValue);
                 newListIndex += 1;
               }
+            } else if (List.isList(keyValue)) {
+              const joinedKeyPath = keyPath.join(".");
+              const newKey = joinedKeyPath + key.substr(joinedKeyPath.length + 1);
+              map = parseArrayByKey(
+                // replace part of key with joined keypath, then call with result
+                newKey,
+                map,
+                undefined,
+                inputMessage,
+                format,
+                type,
+                ignoreLeft,
+                ignoreRight,
+                paramName,
+                paramFormat,
+                upperCase,
+                prefixLength,
+                prefix);
             } else {
               if (format) {
                 keyValue = transform(

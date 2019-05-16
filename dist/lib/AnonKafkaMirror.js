@@ -86,6 +86,11 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type, ignoreL
                                 newListIndex_1 += 1;
                             }
                         }
+                        else if (immutable_1.List.isList(keyValue)) {
+                            var joinedKeyPath = keyPath.join(".");
+                            var newKey = joinedKeyPath + key.substr(joinedKeyPath.length + 1);
+                            map = parseArrayByKey(newKey, map, undefined, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+                        }
                         else {
                             if (format) {
                                 keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
