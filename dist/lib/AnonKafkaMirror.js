@@ -88,7 +88,7 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type, ignoreL
                         }
                         else if (immutable_1.List.isList(keyValue)) {
                             var joinedKeyPath = keyPath.join(".");
-                            var newKey = joinedKeyPath + key.substr(joinedKeyPath.length + 1);
+                            var newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
                             map = parseArrayByKey(newKey, map, undefined, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
                         }
                         else {

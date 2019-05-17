@@ -146,9 +146,8 @@ const parseArrayByKey = (
               }
             } else if (List.isList(keyValue)) {
               const joinedKeyPath = keyPath.join(".");
-              const newKey = joinedKeyPath + key.substr(joinedKeyPath.length + 1);
+              const newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
               map = parseArrayByKey(
-                // replace part of key with joined keypath, then call with result
                 newKey,
                 map,
                 undefined,
