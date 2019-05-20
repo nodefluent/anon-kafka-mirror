@@ -1,15 +1,8 @@
+import { KafkaStreamsConfig } from "kafka-streams";
 import { Logger, LoggerOptions } from "pino";
 export interface IConfig {
     logger?: LoggerOptions;
-    consumer: {
-        noptions: {
-            [key: string]: string;
-        };
-        tconf: {
-            [key: string]: string;
-        };
-        logger?: Logger;
-    };
+    consumer: KafkaStreamsConfig;
     producer: {
         noptions: {
             [key: string]: string;

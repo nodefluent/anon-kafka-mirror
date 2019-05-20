@@ -17,7 +17,6 @@ import {
   hashUUID,
   splitPath,
 } from "./utils";
-import { join } from "path";
 
 const debugLogger = debug("anon-kafka-mirror:mirror");
 
@@ -244,8 +243,9 @@ const parseByKey = (
 
 export const mapMessage = (config: IConfig, m: any) => {
   const inputMessage = fromJS(m);
-  if (config.consumer && config.consumer.logger && config.consumer.logger.debug) {
-    config.consumer.logger.debug(inputMessage.toJS(), "Got message");
+  const anyConfig = config.consumer as any;
+  if (anyConfig && anyConfig.logger && anyConfig.logger.debug) {
+    anyConfig.logger.debug(inputMessage.toJS(), "Got message");
   }
   let outputMessage = Map<string, any>();
   if (inputMessage.get("offset")) {

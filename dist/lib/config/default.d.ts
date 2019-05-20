@@ -10,7 +10,7 @@ declare const config: {
             "group.id": string;
         };
         tconf: {
-            "auto.offset.reset": string;
+            "auto.offset.reset": "earliest";
         };
         logger: any;
     };

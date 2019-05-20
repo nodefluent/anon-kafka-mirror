@@ -128,8 +128,9 @@ var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ign
 };
 exports.mapMessage = function (config, m) {
     var inputMessage = immutable_1.fromJS(m);
-    if (config.consumer && config.consumer.logger && config.consumer.logger.debug) {
-        config.consumer.logger.debug(inputMessage.toJS(), "Got message");
+    var anyConfig = config.consumer;
+    if (anyConfig && anyConfig.logger && anyConfig.logger.debug) {
+        anyConfig.logger.debug(inputMessage.toJS(), "Got message");
     }
     var outputMessage = immutable_1.Map();
     if (inputMessage.get("offset")) {
