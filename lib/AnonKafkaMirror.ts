@@ -51,19 +51,14 @@ const transform = (
   switch (format) {
     case "hashed.uuid":
       return hashUUID(keyValue);
-      break;
     case "hashed.string":
       return hashString(keyValue, ignoreLeft, ignoreRight);
-      break;
     case "hashed.queryParam":
       return hashQueryParam(keyValue, paramName, paramFormat);
-      break;
     case "hashed.alphanumerical":
       return hashAlphanumerical(keyValue, ignoreLeft, upperCase);
-      break;
     case "luhn.string":
       return hashLuhnString(keyValue, prefixLength, prefix);
-      break;
     default:
       return fake(format, type);
   }
@@ -241,8 +236,8 @@ const parseByKey = (
   return map;
 };
 
-export const mapMessage = (config: ITopicConfig, m: any) => {
-  const inputMessage = fromJS(m);
+export const mapMessage = (config: ITopicConfig, jsonMessage: any) => {
+  const inputMessage = fromJS(jsonMessage);
   let outputMessage = Map<string, any>();
 
   if (inputMessage.has("offset")) {
@@ -261,32 +256,7 @@ export const mapMessage = (config: ITopicConfig, m: any) => {
     outputMessage = outputMessage.set("topic", config.newName || inputMessage.get("topic"));
   }
 
-  if (config.key && config.key.proxy === false) {
-    if (config.key.format) {
-      const keyValue = transform(
-        config.key.format,
-        m.key.toString(),
-        config.key.type,
-        config.key.ignoreLeft,
-        config.key.ignoreRight,
-        config.key.paramName,
-        config.key.paramFormat,
-        config.key.upperCase,
-        config.key.prefixLength,
-        config.key.prefix);
-      if (keyValue) {
-        outputMessage = outputMessage.set("key", keyValue);
-      }
-    }
-  }
-
-  if (config.key && config.key.proxy) {
-    outputMessage = outputMessage.set("key", inputMessage.get("key"));
-  }
-
-  if (!outputMessage.get("key")) {
-    outputMessage = outputMessage.set("key", null);
-  }
+  outputMessage = mapKey(config, inputMessage, outputMessage);
 
   if (!inputMessage.get("value") || typeof inputMessage.get("value") !== "object") {
     const v = inputMessage.get("value") === undefined ? null : inputMessage.get("value");
@@ -392,4 +362,35 @@ export class AnonKafkaMirror {
         process.exit(1);
       });
   }
+}
+function mapKey(
+  config: ITopicConfig,
+  inputMessage: Map<string, any>,
+  outputMessage: Map<string, any>,
+): Map<string, any> {
+  if (!config.key) {
+    return outputMessage;
+  }
+
+  if (config.key && config.key.proxy) {
+    return outputMessage.set("key", inputMessage.get("key") || null);
+  }
+
+  if (!config.key.format) {
+    throw new Error("Key should be altered, but no format was given.");
+  }
+
+  const keyValue = transform(
+    config.key.format,
+    inputMessage.get("key"),
+    config.key.type,
+    config.key.ignoreLeft,
+    config.key.ignoreRight,
+    config.key.paramName,
+    config.key.paramFormat,
+    config.key.upperCase,
+    config.key.prefixLength,
+    config.key.prefix);
+
+  return outputMessage.set("key", keyValue || null);
 }

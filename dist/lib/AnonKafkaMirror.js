@@ -28,19 +28,14 @@ var transform = function (format, keyValue, type, ignoreLeft, ignoreRight, param
     switch (format) {
         case "hashed.uuid":
             return utils_1.hashUUID(keyValue);
-            break;
         case "hashed.string":
             return utils_1.hashString(keyValue, ignoreLeft, ignoreRight);
-            break;
         case "hashed.queryParam":
             return utils_1.hashQueryParam(keyValue, paramName, paramFormat);
-            break;
         case "hashed.alphanumerical":
             return utils_1.hashAlphanumerical(keyValue, ignoreLeft, upperCase);
-            break;
         case "luhn.string":
             return utils_1.hashLuhnString(keyValue, prefixLength, prefix);
-            break;
         default:
             return fake(format, type);
     }
@@ -126,8 +121,8 @@ var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ign
     }
     return map;
 };
-exports.mapMessage = function (config, m) {
-    var inputMessage = immutable_1.fromJS(m);
+exports.mapMessage = function (config, jsonMessage) {
+    var inputMessage = immutable_1.fromJS(jsonMessage);
     var outputMessage = immutable_1.Map();
     if (inputMessage.has("offset")) {
         outputMessage = outputMessage.set("offset", inputMessage.get("offset"));
@@ -141,20 +136,7 @@ exports.mapMessage = function (config, m) {
     if (config.newName || inputMessage.has("topic")) {
         outputMessage = outputMessage.set("topic", config.newName || inputMessage.get("topic"));
     }
-    if (config.key && config.key.proxy === false) {
-        if (config.key.format) {
-            var keyValue = transform(config.key.format, m.key.toString(), config.key.type, config.key.ignoreLeft, config.key.ignoreRight, config.key.paramName, config.key.paramFormat, config.key.upperCase, config.key.prefixLength, config.key.prefix);
-            if (keyValue) {
-                outputMessage = outputMessage.set("key", keyValue);
-            }
-        }
-    }
-    if (config.key && config.key.proxy) {
-        outputMessage = outputMessage.set("key", inputMessage.get("key"));
-    }
-    if (!outputMessage.get("key")) {
-        outputMessage = outputMessage.set("key", null);
-    }
+    outputMessage = mapKey(config, inputMessage, outputMessage);
     if (!inputMessage.get("value") || typeof inputMessage.get("value") !== "object") {
         var v = inputMessage.get("value") === undefined ? null : inputMessage.get("value");
         outputMessage = outputMessage.set("value", v);
@@ -238,4 +220,17 @@ var AnonKafkaMirror = (function () {
     return AnonKafkaMirror;
 }());
 exports.AnonKafkaMirror = AnonKafkaMirror;
+function mapKey(config, inputMessage, outputMessage) {
+    if (!config.key) {
+        return outputMessage;
+    }
+    if (config.key && config.key.proxy) {
+        return outputMessage.set("key", inputMessage.get("key") || null);
+    }
+    if (!config.key.format) {
+        throw new Error("Key should be altered, but no format was given.");
+    }
+    var keyValue = transform(config.key.format, inputMessage.get("key"), config.key.type, config.key.ignoreLeft, config.key.ignoreRight, config.key.paramName, config.key.paramFormat, config.key.upperCase, config.key.prefixLength, config.key.prefix);
+    return outputMessage.set("key", keyValue || null);
+}
 //# sourceMappingURL=AnonKafkaMirror.js.map
