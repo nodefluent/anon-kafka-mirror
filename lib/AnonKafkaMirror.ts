@@ -180,6 +180,94 @@ const parseArrayByKey = (
   return map;
 };
 
+const proxyByKey = (
+  key: string,
+  inputMessage: Map<string, any>,
+  outputMessage: Map<string, any>,
+) => {
+  if (!key.match(arrayMatch)[2]) {
+    const keyPath = splitPath(key);
+    const keyValue = inputMessage.getIn(keyPath);
+    if (keyValue !== undefined) {
+      outputMessage = outputMessage.setIn(keyPath, keyValue);
+    }
+  } else {
+    outputMessage = proxyArrayByKey(
+      key,
+      "",
+      inputMessage,
+      outputMessage,
+    );
+  }
+
+  return outputMessage;
+};
+
+const proxyArrayByKey = (
+  key: string,
+  predefinedSuffix: string,
+  inputMessage: Map<string, any>,
+  outputMessage: Map<string, any>,
+) => {
+  const keyPathMatch = key.match(arrayMatch);
+  const pathPrefix = keyPathMatch[1];
+  const suffix = predefinedSuffix || keyPathMatch[3];
+  if (pathPrefix) {
+    const prefixPath = splitPath(pathPrefix);
+    const keyArray = inputMessage.getIn(prefixPath);
+    if (List.isList(keyArray)) {
+      if (!outputMessage.hasIn(prefixPath)) {
+        outputMessage = outputMessage.setIn(prefixPath, List());
+      }
+      let newListIndex = 0;
+      keyArray.forEach((v, i) => {
+        let keyPath = prefixPath.concat([i]);
+        let newListPath = prefixPath.concat([newListIndex]);
+        const prefixValue = inputMessage.getIn(keyPath);
+        if (List.isList(prefixValue)) {
+          outputMessage = proxyArrayByKey(
+            keyPath.join("."),
+            suffix,
+            inputMessage,
+            outputMessage,
+          );
+        } else {
+          if (suffix) {
+            keyPath = keyPath.concat(splitPath(suffix));
+            newListPath = newListPath.concat(splitPath(suffix));
+          }
+          const keyValue = inputMessage.getIn(keyPath);
+          if (keyValue === null) {
+            outputMessage = outputMessage.setIn(newListPath, null);
+            newListIndex += 1;
+          } else if (keyValue !== undefined) {
+            if (Map.isMap(keyValue)) {
+              const mapValue = keyValue.getIn(splitPath(suffix));
+              if (mapValue !== undefined) {
+                outputMessage = outputMessage.setIn(newListPath, mapValue);
+                newListIndex += 1;
+              }
+            } else if (List.isList(keyValue)) {
+              const joinedKeyPath = keyPath.join(".");
+              const newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
+              outputMessage = proxyArrayByKey(
+                newKey,
+                "",
+                inputMessage,
+                outputMessage,
+              );
+            } else {
+              outputMessage = outputMessage.setIn(newListPath, keyValue);
+              newListIndex += 1;
+            }
+          }
+        }
+      });
+    }
+  }
+  return outputMessage;
+};
+
 const parseByKey = (
   key: string,
   map: Map<string, any>,
@@ -194,45 +282,44 @@ const parseByKey = (
   paramName?: string,
   paramFormat?: string,
 ) => {
-  if (key && typeof key === "string") {
-    if (!key.match(arrayMatch)[2]) {
-      const keyPath = splitPath(key);
-      let keyValue = inputMessage.getIn(keyPath);
-      if (keyValue === null) {
-        map = map.setIn(keyPath, null);
-      } else if (keyValue !== undefined) {
-        if (format) {
-          keyValue = transform(
-            format,
-            keyValue,
-            type,
-            ignoreLeft,
-            ignoreRight,
-            paramName,
-            paramFormat,
-            upperCase,
-            prefixLength,
-            prefix);
-        }
-        map = map.setIn(keyPath, keyValue);
+  if (!key.match(arrayMatch)[2]) {
+    const keyPath = splitPath(key);
+    let keyValue = inputMessage.getIn(keyPath);
+    if (keyValue === null) {
+      map = map.setIn(keyPath, null);
+    } else if (keyValue !== undefined) {
+      if (format) {
+        keyValue = transform(
+          format,
+          keyValue,
+          type,
+          ignoreLeft,
+          ignoreRight,
+          paramName,
+          paramFormat,
+          upperCase,
+          prefixLength,
+          prefix);
       }
-    } else {
-      map = parseArrayByKey(
-        key,
-        map,
-        undefined,
-        inputMessage,
-        format,
-        type,
-        ignoreLeft,
-        ignoreRight,
-        paramName,
-        paramFormat,
-        upperCase,
-        prefixLength,
-        prefix);
+      map = map.setIn(keyPath, keyValue);
     }
+  } else {
+    map = parseArrayByKey(
+      key,
+      map,
+      undefined,
+      inputMessage,
+      format,
+      type,
+      ignoreLeft,
+      ignoreRight,
+      paramName,
+      paramFormat,
+      upperCase,
+      prefixLength,
+      prefix);
   }
+
   return map;
 };
 
@@ -256,50 +343,8 @@ export const mapMessage = (config: ITopicConfig, jsonMessage: any) => {
     outputMessage = outputMessage.set("topic", config.newName || inputMessage.get("topic"));
   }
 
-  outputMessage = mapKey(config, inputMessage, outputMessage);
-
-  if (!inputMessage.get("value") || typeof inputMessage.get("value") !== "object") {
-    const v = inputMessage.get("value") === undefined ? null : inputMessage.get("value");
-    outputMessage = outputMessage.set("value", v);
-    return outputMessage.toJS();
-  }
-  if (inputMessage.get("value").size === 0) {
-    outputMessage = outputMessage.set("value", "{}");
-    return outputMessage.toJS();
-  }
-
-  if (config.proxy && config.proxy instanceof Array) {
-    config.proxy.forEach((key) => {
-      outputMessage = parseByKey(`value.${key}`, outputMessage, inputMessage);
-    });
-  }
-
-  if (config.alter && config.alter instanceof Array) {
-    config.alter.forEach((key) => {
-      outputMessage = parseByKey(
-        `value.${key.name}`,
-        outputMessage,
-        inputMessage,
-        key.format,
-        key.type,
-        key.ignoreLeft,
-        key.ignoreRight,
-        key.upperCase,
-        key.prefixLength,
-        key.prefix,
-        key.paramName,
-        key.paramFormat);
-    });
-  }
-  let value = outputMessage.get("value");
-  if (!value && inputMessage.get("value").size) {
-    value = "{}";
-  } else if (typeof value === "object") {
-    value = JSON.stringify(value);
-  } else {
-    value = null;
-  }
-  outputMessage = outputMessage.set("value", value);
+  outputMessage = mapMessageKey(config, inputMessage, outputMessage);
+  outputMessage = mapMessageValue(config, inputMessage, outputMessage);
   return outputMessage.toJS();
 };
 
@@ -363,11 +408,12 @@ export class AnonKafkaMirror {
       });
   }
 }
-function mapKey(
+
+const mapMessageKey = (
   config: ITopicConfig,
   inputMessage: Map<string, any>,
   outputMessage: Map<string, any>,
-): Map<string, any> {
+): Map<string, any> => {
   if (!config.key) {
     return outputMessage;
   }
@@ -393,4 +439,56 @@ function mapKey(
     config.key.prefix);
 
   return outputMessage.set("key", keyValue || null);
-}
+};
+
+const mapMessageValue = (
+  config: ITopicConfig,
+  inputMessage: Map<string, any>,
+  outputMessage: Map<string, any>,
+): Map<string, any> => {
+  const inputMessageValue = inputMessage.get("value");
+  if (!inputMessageValue || typeof inputMessageValue !== "object") {
+    outputMessage = outputMessage.set("value", inputMessageValue === undefined ? null : inputMessageValue);
+    return outputMessage;
+  }
+
+  if (inputMessageValue.size === 0) {
+    outputMessage = outputMessage.set("value", "{}");
+    return outputMessage;
+  }
+
+  if (config.proxy && config.proxy instanceof Array) {
+    config.proxy.forEach((key) => {
+      outputMessage = proxyByKey(`value.${key}`, inputMessage, outputMessage);
+    });
+  }
+
+  if (config.alter && config.alter instanceof Array) {
+    config.alter.forEach((key) => {
+      outputMessage = parseByKey(
+        `value.${key.name}`,
+        outputMessage,
+        inputMessage,
+        key.format,
+        key.type,
+        key.ignoreLeft,
+        key.ignoreRight,
+        key.upperCase,
+        key.prefixLength,
+        key.prefix,
+        key.paramName,
+        key.paramFormat);
+    });
+  }
+
+  let value = outputMessage.get("value");
+  if (!value && inputMessageValue.size > 0) {
+    value = "{}";
+  } else if (typeof value === "object") {
+    value = JSON.stringify(value);
+  } else {
+    value = null;
+  }
+  outputMessage = outputMessage.set("value", value);
+  return outputMessage;
+};

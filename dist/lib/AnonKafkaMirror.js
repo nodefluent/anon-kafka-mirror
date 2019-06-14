@@ -100,24 +100,88 @@ var parseArrayByKey = function (key, map, s, inputMessage, format, type, ignoreL
     }
     return map;
 };
-var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ignoreRight, upperCase, prefixLength, prefix, paramName, paramFormat) {
-    if (key && typeof key === "string") {
-        if (!key.match(utils_1.arrayMatch)[2]) {
-            var keyPath = utils_1.splitPath(key);
-            var keyValue = inputMessage.getIn(keyPath);
-            if (keyValue === null) {
-                map = map.setIn(keyPath, null);
+var proxyByKey = function (key, inputMessage, outputMessage) {
+    if (!key.match(utils_1.arrayMatch)[2]) {
+        var keyPath = utils_1.splitPath(key);
+        var keyValue = inputMessage.getIn(keyPath);
+        if (keyValue !== undefined) {
+            outputMessage = outputMessage.setIn(keyPath, keyValue);
+        }
+    }
+    else {
+        outputMessage = proxyArrayByKey(key, "", inputMessage, outputMessage);
+    }
+    return outputMessage;
+};
+var proxyArrayByKey = function (key, predefinedSuffix, inputMessage, outputMessage) {
+    var keyPathMatch = key.match(utils_1.arrayMatch);
+    var pathPrefix = keyPathMatch[1];
+    var suffix = predefinedSuffix || keyPathMatch[3];
+    if (pathPrefix) {
+        var prefixPath_2 = utils_1.splitPath(pathPrefix);
+        var keyArray = inputMessage.getIn(prefixPath_2);
+        if (immutable_1.List.isList(keyArray)) {
+            if (!outputMessage.hasIn(prefixPath_2)) {
+                outputMessage = outputMessage.setIn(prefixPath_2, immutable_1.List());
             }
-            else if (keyValue !== undefined) {
-                if (format) {
-                    keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+            var newListIndex_2 = 0;
+            keyArray.forEach(function (v, i) {
+                var keyPath = prefixPath_2.concat([i]);
+                var newListPath = prefixPath_2.concat([newListIndex_2]);
+                var prefixValue = inputMessage.getIn(keyPath);
+                if (immutable_1.List.isList(prefixValue)) {
+                    outputMessage = proxyArrayByKey(keyPath.join("."), suffix, inputMessage, outputMessage);
                 }
-                map = map.setIn(keyPath, keyValue);
+                else {
+                    if (suffix) {
+                        keyPath = keyPath.concat(utils_1.splitPath(suffix));
+                        newListPath = newListPath.concat(utils_1.splitPath(suffix));
+                    }
+                    var keyValue = inputMessage.getIn(keyPath);
+                    if (keyValue === null) {
+                        outputMessage = outputMessage.setIn(newListPath, null);
+                        newListIndex_2 += 1;
+                    }
+                    else if (keyValue !== undefined) {
+                        if (immutable_1.Map.isMap(keyValue)) {
+                            var mapValue = keyValue.getIn(utils_1.splitPath(suffix));
+                            if (mapValue !== undefined) {
+                                outputMessage = outputMessage.setIn(newListPath, mapValue);
+                                newListIndex_2 += 1;
+                            }
+                        }
+                        else if (immutable_1.List.isList(keyValue)) {
+                            var joinedKeyPath = keyPath.join(".");
+                            var newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
+                            outputMessage = proxyArrayByKey(newKey, "", inputMessage, outputMessage);
+                        }
+                        else {
+                            outputMessage = outputMessage.setIn(newListPath, keyValue);
+                            newListIndex_2 += 1;
+                        }
+                    }
+                }
+            });
+        }
+    }
+    return outputMessage;
+};
+var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ignoreRight, upperCase, prefixLength, prefix, paramName, paramFormat) {
+    if (!key.match(utils_1.arrayMatch)[2]) {
+        var keyPath = utils_1.splitPath(key);
+        var keyValue = inputMessage.getIn(keyPath);
+        if (keyValue === null) {
+            map = map.setIn(keyPath, null);
+        }
+        else if (keyValue !== undefined) {
+            if (format) {
+                keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
             }
+            map = map.setIn(keyPath, keyValue);
         }
-        else {
-            map = parseArrayByKey(key, map, undefined, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
-        }
+    }
+    else {
+        map = parseArrayByKey(key, map, undefined, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
     }
     return map;
 };
@@ -136,37 +200,8 @@ exports.mapMessage = function (config, jsonMessage) {
     if (config.newName || inputMessage.has("topic")) {
         outputMessage = outputMessage.set("topic", config.newName || inputMessage.get("topic"));
     }
-    outputMessage = mapKey(config, inputMessage, outputMessage);
-    if (!inputMessage.get("value") || typeof inputMessage.get("value") !== "object") {
-        var v = inputMessage.get("value") === undefined ? null : inputMessage.get("value");
-        outputMessage = outputMessage.set("value", v);
-        return outputMessage.toJS();
-    }
-    if (inputMessage.get("value").size === 0) {
-        outputMessage = outputMessage.set("value", "{}");
-        return outputMessage.toJS();
-    }
-    if (config.proxy && config.proxy instanceof Array) {
-        config.proxy.forEach(function (key) {
-            outputMessage = parseByKey("value." + key, outputMessage, inputMessage);
-        });
-    }
-    if (config.alter && config.alter instanceof Array) {
-        config.alter.forEach(function (key) {
-            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type, key.ignoreLeft, key.ignoreRight, key.upperCase, key.prefixLength, key.prefix, key.paramName, key.paramFormat);
-        });
-    }
-    var value = outputMessage.get("value");
-    if (!value && inputMessage.get("value").size) {
-        value = "{}";
-    }
-    else if (typeof value === "object") {
-        value = JSON.stringify(value);
-    }
-    else {
-        value = null;
-    }
-    outputMessage = outputMessage.set("value", value);
+    outputMessage = mapMessageKey(config, inputMessage, outputMessage);
+    outputMessage = mapMessageValue(config, inputMessage, outputMessage);
     return outputMessage.toJS();
 };
 var AnonKafkaMirror = (function () {
@@ -220,7 +255,7 @@ var AnonKafkaMirror = (function () {
     return AnonKafkaMirror;
 }());
 exports.AnonKafkaMirror = AnonKafkaMirror;
-function mapKey(config, inputMessage, outputMessage) {
+var mapMessageKey = function (config, inputMessage, outputMessage) {
     if (!config.key) {
         return outputMessage;
     }
@@ -232,5 +267,38 @@ function mapKey(config, inputMessage, outputMessage) {
     }
     var keyValue = transform(config.key.format, inputMessage.get("key"), config.key.type, config.key.ignoreLeft, config.key.ignoreRight, config.key.paramName, config.key.paramFormat, config.key.upperCase, config.key.prefixLength, config.key.prefix);
     return outputMessage.set("key", keyValue || null);
-}
+};
+var mapMessageValue = function (config, inputMessage, outputMessage) {
+    var inputMessageValue = inputMessage.get("value");
+    if (!inputMessageValue || typeof inputMessageValue !== "object") {
+        outputMessage = outputMessage.set("value", inputMessageValue === undefined ? null : inputMessageValue);
+        return outputMessage;
+    }
+    if (inputMessageValue.size === 0) {
+        outputMessage = outputMessage.set("value", "{}");
+        return outputMessage;
+    }
+    if (config.proxy && config.proxy instanceof Array) {
+        config.proxy.forEach(function (key) {
+            outputMessage = proxyByKey("value." + key, inputMessage, outputMessage);
+        });
+    }
+    if (config.alter && config.alter instanceof Array) {
+        config.alter.forEach(function (key) {
+            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type, key.ignoreLeft, key.ignoreRight, key.upperCase, key.prefixLength, key.prefix, key.paramName, key.paramFormat);
+        });
+    }
+    var value = outputMessage.get("value");
+    if (!value && inputMessageValue.size > 0) {
+        value = "{}";
+    }
+    else if (typeof value === "object") {
+        value = JSON.stringify(value);
+    }
+    else {
+        value = null;
+    }
+    outputMessage = outputMessage.set("value", value);
+    return outputMessage;
+};
 //# sourceMappingURL=AnonKafkaMirror.js.map
