@@ -128,32 +128,28 @@ var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ign
 };
 exports.mapMessage = function (config, m) {
     var inputMessage = immutable_1.fromJS(m);
-    var anyConfig = config.consumer;
-    if (anyConfig && anyConfig.logger && anyConfig.logger.debug) {
-        anyConfig.logger.debug(inputMessage.toJS(), "Got message");
-    }
     var outputMessage = immutable_1.Map();
-    if (inputMessage.get("offset")) {
+    if (inputMessage.has("offset")) {
         outputMessage = outputMessage.set("offset", inputMessage.get("offset"));
     }
-    if (inputMessage.get("partition")) {
+    if (inputMessage.has("partition")) {
         outputMessage = outputMessage.set("partition", inputMessage.get("partition"));
     }
-    if (inputMessage.get("timestamp")) {
+    if (inputMessage.has("timestamp")) {
         outputMessage = outputMessage.set("timestamp", inputMessage.get("timestamp"));
     }
-    if (config.topic.newName || inputMessage.get("topic")) {
-        outputMessage = outputMessage.set("topic", config.topic.newName || inputMessage.get("topic"));
+    if (config.newName || inputMessage.has("topic")) {
+        outputMessage = outputMessage.set("topic", config.newName || inputMessage.get("topic"));
     }
-    if (config.topic.key && config.topic.key.proxy === false) {
-        if (config.topic.key.format) {
-            var keyValue = transform(config.topic.key.format, m.key.toString(), config.topic.key.type, config.topic.key.ignoreLeft, config.topic.key.ignoreRight, config.topic.key.paramName, config.topic.key.paramFormat, config.topic.key.upperCase, config.topic.key.prefixLength, config.topic.key.prefix);
+    if (config.key && config.key.proxy === false) {
+        if (config.key.format) {
+            var keyValue = transform(config.key.format, m.key.toString(), config.key.type, config.key.ignoreLeft, config.key.ignoreRight, config.key.paramName, config.key.paramFormat, config.key.upperCase, config.key.prefixLength, config.key.prefix);
             if (keyValue) {
                 outputMessage = outputMessage.set("key", keyValue);
             }
         }
     }
-    if (config.topic.key && config.topic.key.proxy) {
+    if (config.key && config.key.proxy) {
         outputMessage = outputMessage.set("key", inputMessage.get("key"));
     }
     if (!outputMessage.get("key")) {
@@ -168,13 +164,13 @@ exports.mapMessage = function (config, m) {
         outputMessage = outputMessage.set("value", "{}");
         return outputMessage.toJS();
     }
-    if (config.topic.proxy && config.topic.proxy instanceof Array) {
-        config.topic.proxy.forEach(function (key) {
+    if (config.proxy && config.proxy instanceof Array) {
+        config.proxy.forEach(function (key) {
             outputMessage = parseByKey("value." + key, outputMessage, inputMessage);
         });
     }
-    if (config.topic.alter && config.topic.alter instanceof Array) {
-        config.topic.alter.forEach(function (key) {
+    if (config.alter && config.alter instanceof Array) {
+        config.alter.forEach(function (key) {
             outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type, key.ignoreLeft, key.ignoreRight, key.upperCase, key.prefixLength, key.prefix, key.paramName, key.paramFormat);
         });
     }
@@ -204,7 +200,7 @@ var AnonKafkaMirror = (function () {
         this.stream
             .from(config.topic.name)
             .mapJSONConvenience()
-            .map(function (m) { return exports.mapMessage(config, m); })
+            .map(function (m) { return exports.mapMessage(config.topic, m); })
             .tap(function (message) {
             debugLogger(message, "Transformed message");
             if (_this.metrics) {
@@ -215,23 +211,23 @@ var AnonKafkaMirror = (function () {
     }
     AnonKafkaMirror.prototype.run = function () {
         var _this = this;
+        this.app.get("/admin/healthcheck", function (_, res) {
+            res.status(_this.alive ? 200 : 503).end();
+        });
+        this.app.get("/admin/health", function (_, res) {
+            res.status(200).json({
+                status: _this.alive ? "UP" : "DOWN",
+                uptime: process.uptime(),
+            });
+        });
         if (this.config.metrics && this.config.metrics.port && this.config.metrics.probeIntervalMs) {
             this.metrics = new Metrics_1.default(this.config.metrics);
             this.metrics.collect(this.app);
             this.app.get("/metrics", Metrics_1.default.exposeMetricsRequestHandler);
-            this.app.get("/admin/healthcheck", function (_, res) {
-                res.status(_this.alive ? 200 : 503).end();
-            });
-            this.app.get("/admin/health", function (_, res) {
-                res.status(200).json({
-                    status: _this.alive ? "UP" : "DOWN",
-                    uptime: process.uptime(),
-                });
-            });
-            this.app.listen(this.config.metrics.port, function () {
-                debugLogger("Service up @ http://localhost:" + _this.config.metrics.port);
-            });
         }
+        this.app.listen(this.config.metrics.port, function () {
+            debugLogger("Service up @ http://localhost:" + _this.config.metrics.port);
+        });
         return this.stream.start({ outputKafkaConfig: this.config.producer })
             .catch(function (e) {
             _this.alive = false;

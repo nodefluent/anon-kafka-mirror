@@ -119,7 +119,7 @@ if (commanderProgram.dryRun) {
         try {
             const inputJSON = inputChunks.join();
             const parsedData = JSON.parse(inputJSON);
-            const mappedJSON = mapMessage(localConfig, parsedData);
+            const mappedJSON = mapMessage(localConfig.topic, parsedData);
             const outputJSON = JSON.stringify(mappedJSON, null, "    ");
             stdout.write(outputJSON);
             stdout.write("\n");

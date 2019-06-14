@@ -7,7 +7,7 @@ import { fromJS, List, Map } from "immutable";
 import { KafkaStreams, KStream } from "kafka-streams";
 
 import Metrics from "./Metrics";
-import { IConfig } from "./types";
+import { IConfig, ITopicConfig } from "./types";
 import {
   arrayMatch,
   hashAlphanumerical,
@@ -241,46 +241,46 @@ const parseByKey = (
   return map;
 };
 
-export const mapMessage = (config: IConfig, m: any) => {
+export const mapMessage = (config: ITopicConfig, m: any) => {
   const inputMessage = fromJS(m);
-  const anyConfig = config.consumer as any;
-  if (anyConfig && anyConfig.logger && anyConfig.logger.debug) {
-    anyConfig.logger.debug(inputMessage.toJS(), "Got message");
-  }
   let outputMessage = Map<string, any>();
-  if (inputMessage.get("offset")) {
+
+  if (inputMessage.has("offset")) {
     outputMessage = outputMessage.set("offset", inputMessage.get("offset"));
   }
-  if (inputMessage.get("partition")) {
+
+  if (inputMessage.has("partition")) {
     outputMessage = outputMessage.set("partition", inputMessage.get("partition"));
   }
-  if (inputMessage.get("timestamp")) {
+
+  if (inputMessage.has("timestamp")) {
     outputMessage = outputMessage.set("timestamp", inputMessage.get("timestamp"));
   }
-  if (config.topic.newName || inputMessage.get("topic")) {
-    outputMessage = outputMessage.set("topic", config.topic.newName || inputMessage.get("topic"));
+
+  if (config.newName || inputMessage.has("topic")) {
+    outputMessage = outputMessage.set("topic", config.newName || inputMessage.get("topic"));
   }
 
-  if (config.topic.key && config.topic.key.proxy === false) {
-    if (config.topic.key.format) {
+  if (config.key && config.key.proxy === false) {
+    if (config.key.format) {
       const keyValue = transform(
-        config.topic.key.format,
+        config.key.format,
         m.key.toString(),
-        config.topic.key.type,
-        config.topic.key.ignoreLeft,
-        config.topic.key.ignoreRight,
-        config.topic.key.paramName,
-        config.topic.key.paramFormat,
-        config.topic.key.upperCase,
-        config.topic.key.prefixLength,
-        config.topic.key.prefix);
+        config.key.type,
+        config.key.ignoreLeft,
+        config.key.ignoreRight,
+        config.key.paramName,
+        config.key.paramFormat,
+        config.key.upperCase,
+        config.key.prefixLength,
+        config.key.prefix);
       if (keyValue) {
         outputMessage = outputMessage.set("key", keyValue);
       }
     }
   }
 
-  if (config.topic.key && config.topic.key.proxy) {
+  if (config.key && config.key.proxy) {
     outputMessage = outputMessage.set("key", inputMessage.get("key"));
   }
 
@@ -298,14 +298,14 @@ export const mapMessage = (config: IConfig, m: any) => {
     return outputMessage.toJS();
   }
 
-  if (config.topic.proxy && config.topic.proxy instanceof Array) {
-    config.topic.proxy.forEach((key) => {
+  if (config.proxy && config.proxy instanceof Array) {
+    config.proxy.forEach((key) => {
       outputMessage = parseByKey(`value.${key}`, outputMessage, inputMessage);
     });
   }
 
-  if (config.topic.alter && config.topic.alter instanceof Array) {
-    config.topic.alter.forEach((key) => {
+  if (config.alter && config.alter instanceof Array) {
+    config.alter.forEach((key) => {
       outputMessage = parseByKey(
         `value.${key.name}`,
         outputMessage,
@@ -352,7 +352,7 @@ export class AnonKafkaMirror {
     this.stream
       .from(config.topic.name)
       .mapJSONConvenience()
-      .map((m) => mapMessage(config, m))
+      .map((m) => mapMessage(config.topic, m))
       .tap((message) => {
         debugLogger(message, "Transformed message");
         if (this.metrics) {
@@ -363,26 +363,26 @@ export class AnonKafkaMirror {
   }
 
   public run() {
+    this.app.get("/admin/healthcheck", (_, res) => {
+      res.status(this.alive ? 200 : 503).end();
+    });
+
+    this.app.get("/admin/health", (_, res) => {
+      res.status(200).json({
+        status: this.alive ? "UP" : "DOWN",
+        uptime: process.uptime(),
+      });
+    });
+
     if (this.config.metrics && this.config.metrics.port && this.config.metrics.probeIntervalMs) {
       this.metrics = new Metrics(this.config.metrics);
       this.metrics.collect(this.app);
       this.app.get("/metrics", Metrics.exposeMetricsRequestHandler);
-
-      this.app.get("/admin/healthcheck", (_, res) => {
-        res.status(this.alive ? 200 : 503).end();
-      });
-
-      this.app.get("/admin/health", (_, res) => {
-        res.status(200).json({
-          status: this.alive ? "UP" : "DOWN",
-          uptime: process.uptime(),
-        });
-      });
-
-      this.app.listen(this.config.metrics.port, () => {
-        debugLogger(`Service up @ http://localhost:${this.config.metrics.port}`);
-      });
     }
+
+    this.app.listen(this.config.metrics.port, () => {
+      debugLogger(`Service up @ http://localhost:${this.config.metrics.port}`);
+    });
 
     // @ts-ignore
     return this.stream.start({ outputKafkaConfig: this.config.producer })

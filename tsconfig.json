@@ -27,6 +27,6 @@
         "index.ts",
         "package.json",
         "lib/**/*",
-        "spec/**/*"
+        "spec/**/*", "test/utils.test.ts"
     ]
 }

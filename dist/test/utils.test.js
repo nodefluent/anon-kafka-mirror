@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var chai_1 = require("chai");
 require("mocha");
-var utils_1 = require("./utils");
+var utils_1 = require("../lib/utils");
 describe("utils", function () {
     describe("arrayMatch:" + typeof utils_1.arrayMatch, function () {
         it("should match supported patterns", function () {

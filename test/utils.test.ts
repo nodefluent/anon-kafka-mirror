@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import "mocha";
-import { arrayMatch, splitPath } from "./utils";
+import { arrayMatch, splitPath } from "../lib/utils";
 
 // tslint:disable:no-unused-expression
 describe("utils", () => {

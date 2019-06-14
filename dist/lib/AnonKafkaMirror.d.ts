@@ -1,6 +1,6 @@
 import Metrics from "./Metrics";
-import { IConfig } from "./types";
-export declare const mapMessage: (config: IConfig, m: any) => any;
+import { IConfig, ITopicConfig } from "./types";
+export declare const mapMessage: (config: ITopicConfig, m: any) => any;
 export declare class AnonKafkaMirror {
     config: IConfig;
     app: any;
