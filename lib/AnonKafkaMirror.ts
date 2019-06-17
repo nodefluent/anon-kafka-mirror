@@ -9,12 +9,12 @@ import { KafkaStreams, KStream } from "kafka-streams";
 import Metrics from "./Metrics";
 import { IConfig, ITopicConfig } from "./types";
 import {
-  arrayMatch,
   hashAlphanumerical,
   hashLuhnString,
   hashQueryParam,
   hashString,
   hashUUID,
+  isArrayPath,
   splitPath,
 } from "./utils";
 
@@ -66,10 +66,9 @@ const transform = (
 
 const parseArrayByKey = (
   key: string,
-  map: Map<string, any>,
-  s: string = "",
   inputMessage: Map<string, any>,
-  format?: string,
+  outputMessage: Map<string, any>,
+  format: string,
   type?: string,
   ignoreLeft?: number,
   ignoreRight?: number,
@@ -79,105 +78,107 @@ const parseArrayByKey = (
   prefixLength?: number,
   prefix?: string,
 ) => {
-  const keyPathMatch = key.match(arrayMatch);
-  const pathPrefix = keyPathMatch[1];
-  const suffix = s || keyPathMatch[3];
-  if (pathPrefix) {
-    const prefixPath = splitPath(pathPrefix);
-    const keyArray = inputMessage.getIn(prefixPath);
-    if (List.isList(keyArray)) {
-      if (!map.hasIn(prefixPath)) {
-        map = map.setIn(prefixPath, List());
+  const [isArray, keyPrefix, suffix] = isArrayPath(key);
+  if (!isArray) {
+    throw new Error(`Path ${key} is treated as an array path, but no array indexer was found.`);
+  }
+
+  let isSubArray;
+  let suffixPrefix;
+  let suffixSuffix;
+  if (suffix) {
+    [isSubArray, suffixPrefix, suffixSuffix] = isArrayPath(suffix);
+  }
+  const prefixPath = splitPath(keyPrefix);
+  const keyArray = inputMessage.getIn(prefixPath);
+  if (List.isList(keyArray)) {
+    if (!outputMessage.hasIn(prefixPath)) {
+      outputMessage = outputMessage.setIn(prefixPath, List());
+    }
+    keyArray.forEach((v, i) => {
+      let keyPath = prefixPath.concat([i]);
+      let newListPath = prefixPath.concat([i]);
+      if (isSubArray && suffixPrefix) {
+        keyPath = keyPath.concat([suffixPrefix]);
+        newListPath = newListPath.concat([suffixPrefix]);
       }
-      let newListIndex = 0;
-      keyArray.forEach((v, i) => {
-        let keyPath = prefixPath.concat([i]);
-        let newListPath = prefixPath.concat([newListIndex]);
-        const prefixValue = inputMessage.getIn(keyPath);
-        if (List.isList(prefixValue)) {
-          map = parseArrayByKey(
-            keyPath.join("."),
-            map,
-            suffix,
-            inputMessage,
-            format,
-            type,
-            ignoreLeft,
-            ignoreRight,
-            paramName,
-            paramFormat,
-            upperCase,
-            prefixLength,
-            prefix);
-        } else {
-          if (suffix) {
-            keyPath = keyPath.concat(splitPath(suffix));
-            newListPath = newListPath.concat(splitPath(suffix));
-          }
-          let keyValue = inputMessage.getIn(keyPath);
-          if (keyValue === null) {
-            map = map.setIn(newListPath, null);
-            newListIndex += 1;
-          } else if (keyValue !== undefined) {
-            if (Map.isMap(keyValue)) {
-              let mapValue = keyValue.getIn(splitPath(suffix));
-              if (format) {
-                mapValue = transform(
-                  format,
-                  mapValue,
-                  type,
-                  ignoreLeft,
-                  ignoreRight,
-                  paramName,
-                  paramFormat,
-                  upperCase,
-                  prefixLength,
-                  prefix);
-              }
-              if (mapValue !== undefined) {
-                map = map.setIn(newListPath, mapValue);
-                newListIndex += 1;
-              }
-            } else if (List.isList(keyValue)) {
-              const joinedKeyPath = keyPath.join(".");
-              const newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
-              map = parseArrayByKey(
-                newKey,
-                map,
-                undefined,
-                inputMessage,
-                format,
-                type,
-                ignoreLeft,
-                ignoreRight,
-                paramName,
-                paramFormat,
-                upperCase,
-                prefixLength,
-                prefix);
-            } else {
-              if (format) {
-                keyValue = transform(
-                  format,
-                  keyValue,
-                  type,
-                  ignoreLeft,
-                  ignoreRight,
-                  paramName,
-                  paramFormat,
-                  upperCase,
-                  prefixLength,
-                  prefix);
-              }
-              map = map.setIn(newListPath, keyValue);
-              newListIndex += 1;
+
+      const prefixValue = inputMessage.getIn(keyPath);
+      if (List.isList(prefixValue)) {
+        outputMessage = parseArrayByKey(
+          `${keyPath.join(".")}${isSubArray ? "[*]" + (suffixSuffix || "") : suffix}`,
+          inputMessage,
+          outputMessage,
+          format,
+          type,
+          ignoreLeft,
+          ignoreRight,
+          paramName,
+          paramFormat,
+          upperCase,
+          prefixLength,
+          prefix);
+      } else {
+        if (suffix) {
+          keyPath = keyPath.concat(splitPath(suffix));
+          newListPath = newListPath.concat(splitPath(suffix));
+        }
+        let keyValue = inputMessage.getIn(keyPath);
+        if (keyValue === null) {
+          outputMessage = outputMessage.setIn(newListPath, null);
+        } else if (keyValue !== undefined) {
+          if (Map.isMap(keyValue)) {
+            let mapValue = keyValue.getIn(splitPath(suffix));
+            mapValue = transform(
+              format,
+              mapValue,
+              type,
+              ignoreLeft,
+              ignoreRight,
+              paramName,
+              paramFormat,
+              upperCase,
+              prefixLength,
+              prefix);
+            if (mapValue !== undefined) {
+              outputMessage = outputMessage.setIn(newListPath, mapValue);
             }
+          } else if (List.isList(keyValue)) {
+            const joinedKeyPath = keyPath.join(".");
+            const newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
+            outputMessage = parseArrayByKey(
+              newKey,
+              inputMessage,
+              outputMessage,
+              format,
+              type,
+              ignoreLeft,
+              ignoreRight,
+              paramName,
+              paramFormat,
+              upperCase,
+              prefixLength,
+              prefix);
+          } else {
+            keyValue = transform(
+              format,
+              keyValue,
+              type,
+              ignoreLeft,
+              ignoreRight,
+              paramName,
+              paramFormat,
+              upperCase,
+              prefixLength,
+              prefix);
+            outputMessage = outputMessage.setIn(newListPath, keyValue);
           }
         }
-      });
-    }
+      }
+    });
   }
-  return map;
+
+  return outputMessage;
 };
 
 const proxyByKey = (
@@ -185,7 +186,8 @@ const proxyByKey = (
   inputMessage: Map<string, any>,
   outputMessage: Map<string, any>,
 ) => {
-  if (!key.match(arrayMatch)[2]) {
+  const [isArray] = isArrayPath(key);
+  if (!isArray) {
     const keyPath = splitPath(key);
     const keyValue = inputMessage.getIn(keyPath);
     if (keyValue !== undefined) {
@@ -194,7 +196,6 @@ const proxyByKey = (
   } else {
     outputMessage = proxyArrayByKey(
       key,
-      "",
       inputMessage,
       outputMessage,
     );
@@ -205,74 +206,82 @@ const proxyByKey = (
 
 const proxyArrayByKey = (
   key: string,
-  predefinedSuffix: string,
   inputMessage: Map<string, any>,
   outputMessage: Map<string, any>,
 ) => {
-  const keyPathMatch = key.match(arrayMatch);
-  const pathPrefix = keyPathMatch[1];
-  const suffix = predefinedSuffix || keyPathMatch[3];
-  if (pathPrefix) {
-    const prefixPath = splitPath(pathPrefix);
-    const keyArray = inputMessage.getIn(prefixPath);
-    if (List.isList(keyArray)) {
-      if (!outputMessage.hasIn(prefixPath)) {
-        outputMessage = outputMessage.setIn(prefixPath, List());
+  const [isArray, keyPrefix, suffix] = isArrayPath(key);
+  if (!isArray) {
+    throw new Error(`Path ${key} is treated as an array path, but no array indexer was found.`);
+  }
+
+  let isSubArray;
+  let suffixPrefix;
+  let suffixSuffix;
+  if (suffix) {
+    [isSubArray, suffixPrefix, suffixSuffix] = isArrayPath(suffix);
+  }
+  const prefixPath = splitPath(keyPrefix);
+  const keyArray = inputMessage.getIn(prefixPath);
+  if (!keyArray) {
+    return outputMessage;
+  }
+
+  if (!List.isList(keyArray)) {
+    throw new Error(`Path ${prefixPath} is treated as an array, but no array found in this path.`);
+  }
+  if (!outputMessage.hasIn(prefixPath)) {
+    outputMessage = outputMessage.setIn(prefixPath, List());
+  }
+  keyArray.forEach((v, i) => {
+    let keyPath = prefixPath.concat([i]);
+    let newListPath = prefixPath.concat([i]);
+    if (isSubArray && suffixPrefix) {
+      keyPath = keyPath.concat([suffixPrefix]);
+      newListPath = newListPath.concat([suffixPrefix]);
+    }
+    const prefixValue = inputMessage.getIn(keyPath);
+    if (List.isList(prefixValue)) {
+      outputMessage = proxyArrayByKey(
+        `${keyPath.join(".")}${isSubArray ? "[*]" + (suffixSuffix || "") : suffix}`,
+        inputMessage,
+        outputMessage,
+      );
+    } else {
+      if (suffix) {
+        keyPath = keyPath.concat(splitPath(suffix));
+        newListPath = newListPath.concat(splitPath(suffix));
       }
-      let newListIndex = 0;
-      keyArray.forEach((v, i) => {
-        let keyPath = prefixPath.concat([i]);
-        let newListPath = prefixPath.concat([newListIndex]);
-        const prefixValue = inputMessage.getIn(keyPath);
-        if (List.isList(prefixValue)) {
+      const keyValue = inputMessage.getIn(keyPath);
+      if (keyValue === null) {
+        outputMessage = outputMessage.setIn(newListPath, null);
+      } else if (keyValue !== undefined) {
+        if (Map.isMap(keyValue)) {
+          const mapValue = keyValue.getIn(splitPath(suffix));
+          if (mapValue !== undefined) {
+            outputMessage = outputMessage.setIn(newListPath, mapValue);
+          }
+        } else if (List.isList(keyValue)) {
+          const joinedKeyPath = keyPath.join(".");
+          const newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
           outputMessage = proxyArrayByKey(
-            keyPath.join("."),
-            suffix,
+            newKey,
             inputMessage,
             outputMessage,
           );
         } else {
-          if (suffix) {
-            keyPath = keyPath.concat(splitPath(suffix));
-            newListPath = newListPath.concat(splitPath(suffix));
-          }
-          const keyValue = inputMessage.getIn(keyPath);
-          if (keyValue === null) {
-            outputMessage = outputMessage.setIn(newListPath, null);
-            newListIndex += 1;
-          } else if (keyValue !== undefined) {
-            if (Map.isMap(keyValue)) {
-              const mapValue = keyValue.getIn(splitPath(suffix));
-              if (mapValue !== undefined) {
-                outputMessage = outputMessage.setIn(newListPath, mapValue);
-                newListIndex += 1;
-              }
-            } else if (List.isList(keyValue)) {
-              const joinedKeyPath = keyPath.join(".");
-              const newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
-              outputMessage = proxyArrayByKey(
-                newKey,
-                "",
-                inputMessage,
-                outputMessage,
-              );
-            } else {
-              outputMessage = outputMessage.setIn(newListPath, keyValue);
-              newListIndex += 1;
-            }
-          }
+          outputMessage = outputMessage.setIn(newListPath, keyValue);
         }
-      });
+      }
     }
-  }
+  });
   return outputMessage;
 };
 
 const parseByKey = (
   key: string,
-  map: Map<string, any>,
+  outputMessage: Map<string, any>,
   inputMessage: Map<string, any>,
-  format?: string,
+  format: string,
   type?: string,
   ignoreLeft?: number,
   ignoreRight?: number,
@@ -282,33 +291,31 @@ const parseByKey = (
   paramName?: string,
   paramFormat?: string,
 ) => {
-  if (!key.match(arrayMatch)[2]) {
+  const [isArray] = isArrayPath(key);
+  if (!isArray) {
     const keyPath = splitPath(key);
     let keyValue = inputMessage.getIn(keyPath);
     if (keyValue === null) {
-      map = map.setIn(keyPath, null);
+      outputMessage = outputMessage.setIn(keyPath, null);
     } else if (keyValue !== undefined) {
-      if (format) {
-        keyValue = transform(
-          format,
-          keyValue,
-          type,
-          ignoreLeft,
-          ignoreRight,
-          paramName,
-          paramFormat,
-          upperCase,
-          prefixLength,
-          prefix);
-      }
-      map = map.setIn(keyPath, keyValue);
+      keyValue = transform(
+        format,
+        keyValue,
+        type,
+        ignoreLeft,
+        ignoreRight,
+        paramName,
+        paramFormat,
+        upperCase,
+        prefixLength,
+        prefix);
+      outputMessage = outputMessage.setIn(keyPath, keyValue);
     }
   } else {
-    map = parseArrayByKey(
+    outputMessage = parseArrayByKey(
       key,
-      map,
-      undefined,
       inputMessage,
+      outputMessage,
       format,
       type,
       ignoreLeft,
@@ -320,7 +327,7 @@ const parseByKey = (
       prefix);
   }
 
-  return map;
+  return outputMessage;
 };
 
 export const mapMessage = (config: ITopicConfig, jsonMessage: any) => {

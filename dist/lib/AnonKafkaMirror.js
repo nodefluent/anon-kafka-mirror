@@ -40,68 +40,70 @@ var transform = function (format, keyValue, type, ignoreLeft, ignoreRight, param
             return fake(format, type);
     }
 };
-var parseArrayByKey = function (key, map, s, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix) {
-    if (s === void 0) { s = ""; }
-    var keyPathMatch = key.match(utils_1.arrayMatch);
-    var pathPrefix = keyPathMatch[1];
-    var suffix = s || keyPathMatch[3];
-    if (pathPrefix) {
-        var prefixPath_1 = utils_1.splitPath(pathPrefix);
-        var keyArray = inputMessage.getIn(prefixPath_1);
-        if (immutable_1.List.isList(keyArray)) {
-            if (!map.hasIn(prefixPath_1)) {
-                map = map.setIn(prefixPath_1, immutable_1.List());
-            }
-            var newListIndex_1 = 0;
-            keyArray.forEach(function (v, i) {
-                var keyPath = prefixPath_1.concat([i]);
-                var newListPath = prefixPath_1.concat([newListIndex_1]);
-                var prefixValue = inputMessage.getIn(keyPath);
-                if (immutable_1.List.isList(prefixValue)) {
-                    map = parseArrayByKey(keyPath.join("."), map, suffix, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
-                }
-                else {
-                    if (suffix) {
-                        keyPath = keyPath.concat(utils_1.splitPath(suffix));
-                        newListPath = newListPath.concat(utils_1.splitPath(suffix));
-                    }
-                    var keyValue = inputMessage.getIn(keyPath);
-                    if (keyValue === null) {
-                        map = map.setIn(newListPath, null);
-                        newListIndex_1 += 1;
-                    }
-                    else if (keyValue !== undefined) {
-                        if (immutable_1.Map.isMap(keyValue)) {
-                            var mapValue = keyValue.getIn(utils_1.splitPath(suffix));
-                            if (format) {
-                                mapValue = transform(format, mapValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
-                            }
-                            if (mapValue !== undefined) {
-                                map = map.setIn(newListPath, mapValue);
-                                newListIndex_1 += 1;
-                            }
-                        }
-                        else if (immutable_1.List.isList(keyValue)) {
-                            var joinedKeyPath = keyPath.join(".");
-                            var newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
-                            map = parseArrayByKey(newKey, map, undefined, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
-                        }
-                        else {
-                            if (format) {
-                                keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
-                            }
-                            map = map.setIn(newListPath, keyValue);
-                            newListIndex_1 += 1;
-                        }
-                    }
-                }
-            });
-        }
+var parseArrayByKey = function (key, inputMessage, outputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix) {
+    var _a;
+    var _b = utils_1.isArrayPath(key), isArray = _b[0], keyPrefix = _b[1], suffix = _b[2];
+    if (!isArray) {
+        throw new Error("Path " + key + " is treated as an array path, but no array indexer was found.");
     }
-    return map;
+    var isSubArray;
+    var suffixPrefix;
+    var suffixSuffix;
+    if (suffix) {
+        _a = utils_1.isArrayPath(suffix), isSubArray = _a[0], suffixPrefix = _a[1], suffixSuffix = _a[2];
+    }
+    var prefixPath = utils_1.splitPath(keyPrefix);
+    var keyArray = inputMessage.getIn(prefixPath);
+    if (immutable_1.List.isList(keyArray)) {
+        if (!outputMessage.hasIn(prefixPath)) {
+            outputMessage = outputMessage.setIn(prefixPath, immutable_1.List());
+        }
+        keyArray.forEach(function (v, i) {
+            var keyPath = prefixPath.concat([i]);
+            var newListPath = prefixPath.concat([i]);
+            if (isSubArray && suffixPrefix) {
+                keyPath = keyPath.concat([suffixPrefix]);
+                newListPath = newListPath.concat([suffixPrefix]);
+            }
+            var prefixValue = inputMessage.getIn(keyPath);
+            if (immutable_1.List.isList(prefixValue)) {
+                outputMessage = parseArrayByKey("" + keyPath.join(".") + (isSubArray ? "[*]" + (suffixSuffix || "") : suffix), inputMessage, outputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+            }
+            else {
+                if (suffix) {
+                    keyPath = keyPath.concat(utils_1.splitPath(suffix));
+                    newListPath = newListPath.concat(utils_1.splitPath(suffix));
+                }
+                var keyValue = inputMessage.getIn(keyPath);
+                if (keyValue === null) {
+                    outputMessage = outputMessage.setIn(newListPath, null);
+                }
+                else if (keyValue !== undefined) {
+                    if (immutable_1.Map.isMap(keyValue)) {
+                        var mapValue = keyValue.getIn(utils_1.splitPath(suffix));
+                        mapValue = transform(format, mapValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+                        if (mapValue !== undefined) {
+                            outputMessage = outputMessage.setIn(newListPath, mapValue);
+                        }
+                    }
+                    else if (immutable_1.List.isList(keyValue)) {
+                        var joinedKeyPath = keyPath.join(".");
+                        var newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
+                        outputMessage = parseArrayByKey(newKey, inputMessage, outputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+                    }
+                    else {
+                        keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+                        outputMessage = outputMessage.setIn(newListPath, keyValue);
+                    }
+                }
+            }
+        });
+    }
+    return outputMessage;
 };
 var proxyByKey = function (key, inputMessage, outputMessage) {
-    if (!key.match(utils_1.arrayMatch)[2]) {
+    var isArray = utils_1.isArrayPath(key)[0];
+    if (!isArray) {
         var keyPath = utils_1.splitPath(key);
         var keyValue = inputMessage.getIn(keyPath);
         if (keyValue !== undefined) {
@@ -109,81 +111,90 @@ var proxyByKey = function (key, inputMessage, outputMessage) {
         }
     }
     else {
-        outputMessage = proxyArrayByKey(key, "", inputMessage, outputMessage);
+        outputMessage = proxyArrayByKey(key, inputMessage, outputMessage);
     }
     return outputMessage;
 };
-var proxyArrayByKey = function (key, predefinedSuffix, inputMessage, outputMessage) {
-    var keyPathMatch = key.match(utils_1.arrayMatch);
-    var pathPrefix = keyPathMatch[1];
-    var suffix = predefinedSuffix || keyPathMatch[3];
-    if (pathPrefix) {
-        var prefixPath_2 = utils_1.splitPath(pathPrefix);
-        var keyArray = inputMessage.getIn(prefixPath_2);
-        if (immutable_1.List.isList(keyArray)) {
-            if (!outputMessage.hasIn(prefixPath_2)) {
-                outputMessage = outputMessage.setIn(prefixPath_2, immutable_1.List());
+var proxyArrayByKey = function (key, inputMessage, outputMessage) {
+    var _a;
+    var _b = utils_1.isArrayPath(key), isArray = _b[0], keyPrefix = _b[1], suffix = _b[2];
+    if (!isArray) {
+        throw new Error("Path " + key + " is treated as an array path, but no array indexer was found.");
+    }
+    var isSubArray;
+    var suffixPrefix;
+    var suffixSuffix;
+    if (suffix) {
+        _a = utils_1.isArrayPath(suffix), isSubArray = _a[0], suffixPrefix = _a[1], suffixSuffix = _a[2];
+    }
+    var prefixPath = utils_1.splitPath(keyPrefix);
+    var keyArray = inputMessage.getIn(prefixPath);
+    if (!keyArray) {
+        return outputMessage;
+    }
+    if (!immutable_1.List.isList(keyArray)) {
+        throw new Error("Path " + prefixPath + " is treated as an array, but no array found in this path.");
+    }
+    if (!outputMessage.hasIn(prefixPath)) {
+        outputMessage = outputMessage.setIn(prefixPath, immutable_1.List());
+    }
+    keyArray.forEach(function (v, i) {
+        var keyPath = prefixPath.concat([i]);
+        var newListPath = prefixPath.concat([i]);
+        if (isSubArray && suffixPrefix) {
+            keyPath = keyPath.concat([suffixPrefix]);
+            newListPath = newListPath.concat([suffixPrefix]);
+        }
+        var prefixValue = inputMessage.getIn(keyPath);
+        if (immutable_1.List.isList(prefixValue)) {
+            outputMessage = proxyArrayByKey("" + keyPath.join(".") + (isSubArray ? "[*]" + (suffixSuffix || "") : suffix), inputMessage, outputMessage);
+        }
+        else {
+            if (suffix) {
+                keyPath = keyPath.concat(utils_1.splitPath(suffix));
+                newListPath = newListPath.concat(utils_1.splitPath(suffix));
             }
-            var newListIndex_2 = 0;
-            keyArray.forEach(function (v, i) {
-                var keyPath = prefixPath_2.concat([i]);
-                var newListPath = prefixPath_2.concat([newListIndex_2]);
-                var prefixValue = inputMessage.getIn(keyPath);
-                if (immutable_1.List.isList(prefixValue)) {
-                    outputMessage = proxyArrayByKey(keyPath.join("."), suffix, inputMessage, outputMessage);
+            var keyValue = inputMessage.getIn(keyPath);
+            if (keyValue === null) {
+                outputMessage = outputMessage.setIn(newListPath, null);
+            }
+            else if (keyValue !== undefined) {
+                if (immutable_1.Map.isMap(keyValue)) {
+                    var mapValue = keyValue.getIn(utils_1.splitPath(suffix));
+                    if (mapValue !== undefined) {
+                        outputMessage = outputMessage.setIn(newListPath, mapValue);
+                    }
+                }
+                else if (immutable_1.List.isList(keyValue)) {
+                    var joinedKeyPath = keyPath.join(".");
+                    var newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
+                    outputMessage = proxyArrayByKey(newKey, inputMessage, outputMessage);
                 }
                 else {
-                    if (suffix) {
-                        keyPath = keyPath.concat(utils_1.splitPath(suffix));
-                        newListPath = newListPath.concat(utils_1.splitPath(suffix));
-                    }
-                    var keyValue = inputMessage.getIn(keyPath);
-                    if (keyValue === null) {
-                        outputMessage = outputMessage.setIn(newListPath, null);
-                        newListIndex_2 += 1;
-                    }
-                    else if (keyValue !== undefined) {
-                        if (immutable_1.Map.isMap(keyValue)) {
-                            var mapValue = keyValue.getIn(utils_1.splitPath(suffix));
-                            if (mapValue !== undefined) {
-                                outputMessage = outputMessage.setIn(newListPath, mapValue);
-                                newListIndex_2 += 1;
-                            }
-                        }
-                        else if (immutable_1.List.isList(keyValue)) {
-                            var joinedKeyPath = keyPath.join(".");
-                            var newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
-                            outputMessage = proxyArrayByKey(newKey, "", inputMessage, outputMessage);
-                        }
-                        else {
-                            outputMessage = outputMessage.setIn(newListPath, keyValue);
-                            newListIndex_2 += 1;
-                        }
-                    }
+                    outputMessage = outputMessage.setIn(newListPath, keyValue);
                 }
-            });
+            }
         }
-    }
+    });
     return outputMessage;
 };
-var parseByKey = function (key, map, inputMessage, format, type, ignoreLeft, ignoreRight, upperCase, prefixLength, prefix, paramName, paramFormat) {
-    if (!key.match(utils_1.arrayMatch)[2]) {
+var parseByKey = function (key, outputMessage, inputMessage, format, type, ignoreLeft, ignoreRight, upperCase, prefixLength, prefix, paramName, paramFormat) {
+    var isArray = utils_1.isArrayPath(key)[0];
+    if (!isArray) {
         var keyPath = utils_1.splitPath(key);
         var keyValue = inputMessage.getIn(keyPath);
         if (keyValue === null) {
-            map = map.setIn(keyPath, null);
+            outputMessage = outputMessage.setIn(keyPath, null);
         }
         else if (keyValue !== undefined) {
-            if (format) {
-                keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
-            }
-            map = map.setIn(keyPath, keyValue);
+            keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+            outputMessage = outputMessage.setIn(keyPath, keyValue);
         }
     }
     else {
-        map = parseArrayByKey(key, map, undefined, inputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+        outputMessage = parseArrayByKey(key, inputMessage, outputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
     }
-    return map;
+    return outputMessage;
 };
 exports.mapMessage = function (config, jsonMessage) {
     var inputMessage = immutable_1.fromJS(jsonMessage);

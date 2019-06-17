@@ -2,7 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var murmurhash = require("murmurhash");
 var url_1 = require("url");
-exports.arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
+var arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){1})(.*)/);
+exports.isArrayPath = function (path) {
+    var matchResult = path.match(arrayMatch);
+    if (matchResult === null || matchResult.length <= 2 || !matchResult[2]) {
+        return [false];
+    }
+    return [true, matchResult[1] || undefined, matchResult[3] || undefined];
+};
 exports.splitPath = function (path) {
     if (!path) {
         return [];
@@ -20,9 +27,9 @@ exports.splitPath = function (path) {
         }
     });
 };
-exports.isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "i");
+var isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "i");
 exports.hashUUID = function (uuid) {
-    if (!exports.isUUIDRegExp.test(uuid)) {
+    if (!isUUIDRegExp.test(uuid)) {
         return uuid;
     }
     var firstPart = uuid.substr(0, 6);

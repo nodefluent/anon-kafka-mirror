@@ -1,7 +1,16 @@
 import * as murmurhash from "murmurhash";
 import { URL } from "url";
 
-export const arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){0,})([^\[\*\]]*)/);
+const arrayMatch = new RegExp(/([^\[\*\]]*)((?:\[[\*\d+]\]\.?){1})(.*)/);
+
+export const isArrayPath = (path: string): [boolean, string?, string?] => {
+  const matchResult = path.match(arrayMatch);
+  if (matchResult === null || matchResult.length <= 2 || !matchResult[2]) {
+    return [false];
+  }
+
+  return [true, matchResult[1] || undefined, matchResult[3] || undefined];
+};
 
 export const splitPath = (path: string) => {
   if (!path) {
@@ -20,7 +29,7 @@ export const splitPath = (path: string) => {
   });
 };
 
-export const isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "i");
+const isUUIDRegExp = new RegExp(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "i");
 
 export const hashUUID = (uuid: string): string => {
   if (!isUUIDRegExp.test(uuid)) {

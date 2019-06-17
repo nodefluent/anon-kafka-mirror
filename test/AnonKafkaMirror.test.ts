@@ -112,7 +112,7 @@ describe("AnonKafkaMirror", () => {
         expect(mapMessage(config, { value: "" })).to.deep.equal({ key: null, value: "" });
         expect(mapMessage(config, { value: null })).to.deep.equal({ key: null, value: null });
         expect(mapMessage(config, { value: {} })).to.deep.equal({ key: null, value: "{}" });
-        expect(mapMessage(config, { value: { a: 1 } })).to.deep.equal({ key: null, value: "{}" });
+        expect(mapMessage(config, { value: { x: 1 } })).to.deep.equal({ key: null, value: "{}" });
 
         expect(mapMessage(config, { value: { test: 1 } })).to.deep.equal({ key: null, value: "{\"test\":1}" });
         expect(mapMessage(config, { value: { a: [1, 2, 3] } })).to.deep.equal({ key: null, value: "{\"a\":[1,2,3]}" });
@@ -213,6 +213,32 @@ describe("AnonKafkaMirror", () => {
         const value = JSON.parse(outputMessage.value);
         expect(value.z.length).to.be.equal(2);
         expect(value.z[0][0]).to.be.an("string");
+        expect(value.a).to.be.not.ok;
+        expect(value.b).to.be.not.ok;
+      });
+
+      it("should alter a nested array of objects", () => {
+        const config = {
+          name: "test",
+          key: { proxy: true },
+          proxy: [],
+          alter: [
+            {
+              name: "z[*][*]y",
+              type: "string",
+              format: "lorem.word",
+            },
+          ],
+        };
+        const outputMessage = mapMessage(
+          config,
+          {
+            value: { z: [[{ y: "a" }, { y: "b" }], [{ y: "c" }]], a: 1, b: { c: 2 } },
+          });
+        expect(outputMessage.key).to.be.null;
+        const value = JSON.parse(outputMessage.value);
+        expect(value.z).to.have.length(2);
+        expect(value.z[0][0].y).to.be.a("string");
         expect(value.a).to.be.not.ok;
         expect(value.b).to.be.not.ok;
       });

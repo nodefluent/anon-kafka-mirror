@@ -1,62 +1,55 @@
 import { expect } from "chai";
 import "mocha";
-import { arrayMatch, splitPath } from "../lib/utils";
+
+import { isArrayPath, splitPath } from "../lib/utils";
 
 // tslint:disable:no-unused-expression
-describe("utils", () => {
+context("utils", () => {
 
-  describe(`arrayMatch:${typeof arrayMatch}`, () => {
+  describe("isArrayPath", () => {
     it("should match supported patterns", () => {
-      let match = "".match(arrayMatch);
-      expect(match).to.be.ok;
-      expect(match[1]).to.be.equal("");
-      expect(match[2]).to.be.equal("");
+      let [isArray, prefix, suffix] = isArrayPath("");
+      expect(isArray).to.be.false;
 
-      match = "a".match(arrayMatch);
-      expect(match).to.be.ok;
-      expect(match[1]).to.be.equal("a");
-      expect(match[2]).to.be.equal("");
-      expect(match[3]).to.be.equal("");
+      [isArray] = isArrayPath("a");
+      expect(isArray).to.be.false;
 
-      match = "a.b".match(arrayMatch);
-      expect(match).to.be.ok;
-      expect(match[1]).to.be.equal("a.b");
-      expect(match[2]).to.be.equal("");
-      expect(match[3]).to.be.equal("");
+      [isArray] = isArrayPath("a.b");
+      expect(isArray).to.be.false;
 
-      match = "a.b[*]".match(arrayMatch);
-      expect(match).to.be.ok;
-      expect(match[1]).to.be.equal("a.b");
-      expect(match[2]).to.be.equal("[*]");
-      expect(match[3]).to.be.equal("");
+      [isArray, prefix, suffix] = isArrayPath("a.b[*]");
+      expect(isArray).to.be.true;
+      expect(prefix).to.equal("a.b");
+      expect(suffix).to.be.undefined;
 
-      match = "a.b[*][*]".match(arrayMatch);
-      expect(match).to.be.ok;
-      expect(match[1]).to.be.equal("a.b");
-      expect(match[2]).to.be.equal("[*][*]");
-      expect(match[3]).to.be.equal("");
+      [isArray, prefix, suffix] = isArrayPath("[*]b");
+      expect(isArray).to.be.true;
+      expect(prefix).to.be.undefined;
+      expect(suffix).to.equal("b");
 
-      match = "a.b[*][*]".match(arrayMatch);
-      expect(match).to.be.ok;
-      expect(match[1]).to.be.equal("a.b");
-      expect(match[2]).to.be.equal("[*][*]");
-      expect(match[3]).to.be.equal("");
+      [isArray, prefix, suffix] = isArrayPath("[*]c.d");
+      expect(isArray).to.be.true;
+      expect(prefix).to.be.undefined;
+      expect(suffix).to.equal("c.d");
 
-      match = "a.b[*][*]c".match(arrayMatch);
-      expect(match).to.be.ok;
-      expect(match[1]).to.be.equal("a.b");
-      expect(match[2]).to.be.equal("[*][*]");
-      expect(match[3]).to.be.equal("c");
+      [isArray, prefix, suffix] = isArrayPath("a.b[*][*]");
+      expect(isArray).to.be.true;
+      expect(prefix).to.equal("a.b");
+      expect(suffix).to.equal("[*]");
 
-      match = "a.b[*]c.d".match(arrayMatch);
-      expect(match).to.be.ok;
-      expect(match[1]).to.be.equal("a.b");
-      expect(match[2]).to.be.equal("[*]");
-      expect(match[3]).to.be.equal("c.d");
+      [isArray, prefix, suffix] = isArrayPath("a.b[*][*]c");
+      expect(isArray).to.be.true;
+      expect(prefix).to.equal("a.b");
+      expect(suffix).to.equal("[*]c");
+
+      [isArray, prefix, suffix] = isArrayPath("a.b[*]c.d");
+      expect(isArray).to.be.true;
+      expect(prefix).to.equal("a.b");
+      expect(suffix).to.equal("c.d");
     });
   });
 
-  describe(`splitPath:${typeof splitPath}`, () => {
+  describe("splitPath:${typeof splitPath}", () => {
     it("should parse supported patterns", () => {
       expect(splitPath("")).to.be.deep.equal([]);
       expect(splitPath("a")).to.be.deep.equal(["a"]);

@@ -19,7 +19,7 @@ export interface ITopicConfig {
     alter: Array<{
         name: string;
         type?: string;
-        format?: string;
+        format: string;
         ignoreLeft?: number;
         ignoreRight?: number;
         upperCase?: boolean;
