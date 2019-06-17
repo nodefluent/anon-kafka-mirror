@@ -24,23 +24,41 @@ var fake = function (format, type) {
     }
     return value;
 };
-var transform = function (format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix) {
+var transform = function (format, keyValue, formatOptions) {
     switch (format) {
         case "hashed.uuid":
             return utils_1.hashUUID(keyValue);
         case "hashed.string":
-            return utils_1.hashString(keyValue, ignoreLeft, ignoreRight);
+            return utils_1.hashString(keyValue, formatOptions.ignoreLeft, formatOptions.ignoreRight);
         case "hashed.queryParam":
-            return utils_1.hashQueryParam(keyValue, paramName, paramFormat);
+            return utils_1.hashQueryParam(keyValue, formatOptions.paramName, formatOptions.paramFormat);
         case "hashed.alphanumerical":
-            return utils_1.hashAlphanumerical(keyValue, ignoreLeft, upperCase);
+            return utils_1.hashAlphanumerical(keyValue, formatOptions.ignoreLeft, formatOptions.upperCase);
         case "luhn.string":
-            return utils_1.hashLuhnString(keyValue, prefixLength, prefix);
+            return utils_1.hashLuhnString(keyValue, formatOptions.prefixLength, formatOptions.prefix);
         default:
-            return fake(format, type);
+            return fake(format, formatOptions.type);
     }
 };
-var parseArrayByKey = function (key, inputMessage, outputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix) {
+var parseByKey = function (key, outputMessage, inputMessage, format, formatOptions) {
+    var isArray = utils_1.isArrayPath(key)[0];
+    if (!isArray) {
+        var keyPath = utils_1.splitPath(key);
+        var keyValue = inputMessage.getIn(keyPath);
+        if (keyValue === null) {
+            outputMessage = outputMessage.setIn(keyPath, null);
+        }
+        else if (keyValue !== undefined) {
+            keyValue = transform(format, keyValue, formatOptions);
+            outputMessage = outputMessage.setIn(keyPath, keyValue);
+        }
+    }
+    else {
+        outputMessage = parseArrayByKey(key, inputMessage, outputMessage, format, formatOptions);
+    }
+    return outputMessage;
+};
+var parseArrayByKey = function (key, inputMessage, outputMessage, format, formatOptions) {
     var _a;
     var _b = utils_1.isArrayPath(key), isArray = _b[0], keyPrefix = _b[1], suffix = _b[2];
     if (!isArray) {
@@ -67,7 +85,7 @@ var parseArrayByKey = function (key, inputMessage, outputMessage, format, type, 
             }
             var prefixValue = inputMessage.getIn(keyPath);
             if (immutable_1.List.isList(prefixValue)) {
-                outputMessage = parseArrayByKey("" + keyPath.join(".") + (isSubArray ? "[*]" + (suffixSuffix || "") : suffix), inputMessage, outputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+                outputMessage = parseArrayByKey("" + keyPath.join(".") + (isSubArray ? "[*]" + (suffixSuffix || "") : suffix), inputMessage, outputMessage, format, formatOptions);
             }
             else {
                 if (suffix) {
@@ -81,7 +99,7 @@ var parseArrayByKey = function (key, inputMessage, outputMessage, format, type, 
                 else if (keyValue !== undefined) {
                     if (immutable_1.Map.isMap(keyValue)) {
                         var mapValue = keyValue.getIn(utils_1.splitPath(suffix));
-                        mapValue = transform(format, mapValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+                        mapValue = transform(format, mapValue, formatOptions);
                         if (mapValue !== undefined) {
                             outputMessage = outputMessage.setIn(newListPath, mapValue);
                         }
@@ -89,10 +107,10 @@ var parseArrayByKey = function (key, inputMessage, outputMessage, format, type, 
                     else if (immutable_1.List.isList(keyValue)) {
                         var joinedKeyPath = keyPath.join(".");
                         var newKey = joinedKeyPath + key.substr(joinedKeyPath.length + (2 - i.toString().length));
-                        outputMessage = parseArrayByKey(newKey, inputMessage, outputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+                        outputMessage = parseArrayByKey(newKey, inputMessage, outputMessage, format, formatOptions);
                     }
                     else {
-                        keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
+                        keyValue = transform(format, keyValue, formatOptions);
                         outputMessage = outputMessage.setIn(newListPath, keyValue);
                     }
                 }
@@ -178,24 +196,6 @@ var proxyArrayByKey = function (key, inputMessage, outputMessage) {
     });
     return outputMessage;
 };
-var parseByKey = function (key, outputMessage, inputMessage, format, type, ignoreLeft, ignoreRight, upperCase, prefixLength, prefix, paramName, paramFormat) {
-    var isArray = utils_1.isArrayPath(key)[0];
-    if (!isArray) {
-        var keyPath = utils_1.splitPath(key);
-        var keyValue = inputMessage.getIn(keyPath);
-        if (keyValue === null) {
-            outputMessage = outputMessage.setIn(keyPath, null);
-        }
-        else if (keyValue !== undefined) {
-            keyValue = transform(format, keyValue, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
-            outputMessage = outputMessage.setIn(keyPath, keyValue);
-        }
-    }
-    else {
-        outputMessage = parseArrayByKey(key, inputMessage, outputMessage, format, type, ignoreLeft, ignoreRight, paramName, paramFormat, upperCase, prefixLength, prefix);
-    }
-    return outputMessage;
-};
 exports.mapMessage = function (config, jsonMessage) {
     var inputMessage = immutable_1.fromJS(jsonMessage);
     var outputMessage = immutable_1.Map();
@@ -276,7 +276,18 @@ var mapMessageKey = function (config, inputMessage, outputMessage) {
     if (!config.key.format) {
         throw new Error("Key should be altered, but no format was given.");
     }
-    var keyValue = transform(config.key.format, inputMessage.get("key"), config.key.type, config.key.ignoreLeft, config.key.ignoreRight, config.key.paramName, config.key.paramFormat, config.key.upperCase, config.key.prefixLength, config.key.prefix);
+    var _a = config.key, type = _a.type, ignoreLeft = _a.ignoreLeft, ignoreRight = _a.ignoreRight, paramName = _a.paramName, paramFormat = _a.paramFormat, upperCase = _a.upperCase, prefixLength = _a.prefixLength, prefix = _a.prefix;
+    var formatOptions = {
+        type: type,
+        ignoreLeft: ignoreLeft,
+        ignoreRight: ignoreRight,
+        paramName: paramName,
+        paramFormat: paramFormat,
+        upperCase: upperCase,
+        prefixLength: prefixLength,
+        prefix: prefix,
+    };
+    var keyValue = transform(config.key.format, inputMessage.get("key"), formatOptions);
     return outputMessage.set("key", keyValue || null);
 };
 var mapMessageValue = function (config, inputMessage, outputMessage) {
@@ -296,7 +307,18 @@ var mapMessageValue = function (config, inputMessage, outputMessage) {
     }
     if (config.alter && config.alter instanceof Array) {
         config.alter.forEach(function (key) {
-            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key.type, key.ignoreLeft, key.ignoreRight, key.upperCase, key.prefixLength, key.prefix, key.paramName, key.paramFormat);
+            var type = key.type, ignoreLeft = key.ignoreLeft, ignoreRight = key.ignoreRight, paramName = key.paramName, paramFormat = key.paramFormat, upperCase = key.upperCase, prefixLength = key.prefixLength, prefix = key.prefix;
+            var formatOptions = {
+                type: type,
+                ignoreLeft: ignoreLeft,
+                ignoreRight: ignoreRight,
+                paramName: paramName,
+                paramFormat: paramFormat,
+                upperCase: upperCase,
+                prefixLength: prefixLength,
+                prefix: prefix,
+            };
+            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key);
         });
     }
     var value = outputMessage.get("value");

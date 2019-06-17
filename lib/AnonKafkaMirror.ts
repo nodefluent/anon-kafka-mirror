@@ -7,7 +7,11 @@ import { fromJS, List, Map } from "immutable";
 import { KafkaStreams, KStream } from "kafka-streams";
 
 import Metrics from "./Metrics";
-import { IConfig, ITopicConfig } from "./types";
+import {
+  IConfig,
+  IFormatOptions,
+  ITopicConfig,
+} from "./types";
 import {
   hashAlphanumerical,
   hashLuhnString,
@@ -40,28 +44,56 @@ const fake = (format: string, type?: string) => {
 const transform = (
   format: string,
   keyValue: any,
-  type?: string,
-  ignoreLeft?: number,
-  ignoreRight?: number,
-  paramName?: string,
-  paramFormat?: string,
-  upperCase?: boolean,
-  prefixLength?: number,
-  prefix?: string) => {
+  formatOptions: IFormatOptions,
+) => {
   switch (format) {
     case "hashed.uuid":
       return hashUUID(keyValue);
     case "hashed.string":
-      return hashString(keyValue, ignoreLeft, ignoreRight);
+      return hashString(keyValue, formatOptions.ignoreLeft, formatOptions.ignoreRight);
     case "hashed.queryParam":
-      return hashQueryParam(keyValue, paramName, paramFormat);
+      return hashQueryParam(keyValue, formatOptions.paramName, formatOptions.paramFormat);
     case "hashed.alphanumerical":
-      return hashAlphanumerical(keyValue, ignoreLeft, upperCase);
+      return hashAlphanumerical(keyValue, formatOptions.ignoreLeft, formatOptions.upperCase);
     case "luhn.string":
-      return hashLuhnString(keyValue, prefixLength, prefix);
+      return hashLuhnString(keyValue, formatOptions.prefixLength, formatOptions.prefix);
     default:
-      return fake(format, type);
+      return fake(format, formatOptions.type);
   }
+};
+
+const parseByKey = (
+  key: string,
+  outputMessage: Map<string, any>,
+  inputMessage: Map<string, any>,
+  format: string,
+  formatOptions: IFormatOptions,
+) => {
+  const [isArray] = isArrayPath(key);
+  if (!isArray) {
+    const keyPath = splitPath(key);
+    let keyValue = inputMessage.getIn(keyPath);
+    if (keyValue === null) {
+      outputMessage = outputMessage.setIn(keyPath, null);
+    } else if (keyValue !== undefined) {
+      keyValue = transform(
+        format,
+        keyValue,
+        formatOptions,
+      );
+      outputMessage = outputMessage.setIn(keyPath, keyValue);
+    }
+  } else {
+    outputMessage = parseArrayByKey(
+      key,
+      inputMessage,
+      outputMessage,
+      format,
+      formatOptions,
+    );
+  }
+
+  return outputMessage;
 };
 
 const parseArrayByKey = (
@@ -69,14 +101,7 @@ const parseArrayByKey = (
   inputMessage: Map<string, any>,
   outputMessage: Map<string, any>,
   format: string,
-  type?: string,
-  ignoreLeft?: number,
-  ignoreRight?: number,
-  paramName?: string,
-  paramFormat?: string,
-  upperCase?: boolean,
-  prefixLength?: number,
-  prefix?: string,
+  formatOptions: IFormatOptions,
 ) => {
   const [isArray, keyPrefix, suffix] = isArrayPath(key);
   if (!isArray) {
@@ -110,14 +135,8 @@ const parseArrayByKey = (
           inputMessage,
           outputMessage,
           format,
-          type,
-          ignoreLeft,
-          ignoreRight,
-          paramName,
-          paramFormat,
-          upperCase,
-          prefixLength,
-          prefix);
+          formatOptions,
+        );
       } else {
         if (suffix) {
           keyPath = keyPath.concat(splitPath(suffix));
@@ -132,14 +151,8 @@ const parseArrayByKey = (
             mapValue = transform(
               format,
               mapValue,
-              type,
-              ignoreLeft,
-              ignoreRight,
-              paramName,
-              paramFormat,
-              upperCase,
-              prefixLength,
-              prefix);
+              formatOptions,
+            );
             if (mapValue !== undefined) {
               outputMessage = outputMessage.setIn(newListPath, mapValue);
             }
@@ -151,26 +164,14 @@ const parseArrayByKey = (
               inputMessage,
               outputMessage,
               format,
-              type,
-              ignoreLeft,
-              ignoreRight,
-              paramName,
-              paramFormat,
-              upperCase,
-              prefixLength,
-              prefix);
+              formatOptions,
+            );
           } else {
             keyValue = transform(
               format,
               keyValue,
-              type,
-              ignoreLeft,
-              ignoreRight,
-              paramName,
-              paramFormat,
-              upperCase,
-              prefixLength,
-              prefix);
+              formatOptions,
+            );
             outputMessage = outputMessage.setIn(newListPath, keyValue);
           }
         }
@@ -277,59 +278,6 @@ const proxyArrayByKey = (
   return outputMessage;
 };
 
-const parseByKey = (
-  key: string,
-  outputMessage: Map<string, any>,
-  inputMessage: Map<string, any>,
-  format: string,
-  type?: string,
-  ignoreLeft?: number,
-  ignoreRight?: number,
-  upperCase?: boolean,
-  prefixLength?: number,
-  prefix?: string,
-  paramName?: string,
-  paramFormat?: string,
-) => {
-  const [isArray] = isArrayPath(key);
-  if (!isArray) {
-    const keyPath = splitPath(key);
-    let keyValue = inputMessage.getIn(keyPath);
-    if (keyValue === null) {
-      outputMessage = outputMessage.setIn(keyPath, null);
-    } else if (keyValue !== undefined) {
-      keyValue = transform(
-        format,
-        keyValue,
-        type,
-        ignoreLeft,
-        ignoreRight,
-        paramName,
-        paramFormat,
-        upperCase,
-        prefixLength,
-        prefix);
-      outputMessage = outputMessage.setIn(keyPath, keyValue);
-    }
-  } else {
-    outputMessage = parseArrayByKey(
-      key,
-      inputMessage,
-      outputMessage,
-      format,
-      type,
-      ignoreLeft,
-      ignoreRight,
-      paramName,
-      paramFormat,
-      upperCase,
-      prefixLength,
-      prefix);
-  }
-
-  return outputMessage;
-};
-
 export const mapMessage = (config: ITopicConfig, jsonMessage: any) => {
   const inputMessage = fromJS(jsonMessage);
   let outputMessage = Map<string, any>();
@@ -433,17 +381,33 @@ const mapMessageKey = (
     throw new Error("Key should be altered, but no format was given.");
   }
 
+  const {
+    type,
+    ignoreLeft,
+    ignoreRight,
+    paramName,
+    paramFormat,
+    upperCase,
+    prefixLength,
+    prefix,
+  } = config.key;
+
+  const formatOptions = {
+    type,
+    ignoreLeft,
+    ignoreRight,
+    paramName,
+    paramFormat,
+    upperCase,
+    prefixLength,
+    prefix,
+  };
+
   const keyValue = transform(
     config.key.format,
     inputMessage.get("key"),
-    config.key.type,
-    config.key.ignoreLeft,
-    config.key.ignoreRight,
-    config.key.paramName,
-    config.key.paramFormat,
-    config.key.upperCase,
-    config.key.prefixLength,
-    config.key.prefix);
+    formatOptions,
+  );
 
   return outputMessage.set("key", keyValue || null);
 };
@@ -472,19 +436,35 @@ const mapMessageValue = (
 
   if (config.alter && config.alter instanceof Array) {
     config.alter.forEach((key) => {
+      const {
+        type,
+        ignoreLeft,
+        ignoreRight,
+        paramName,
+        paramFormat,
+        upperCase,
+        prefixLength,
+        prefix,
+      } = key;
+
+      const formatOptions = {
+        type,
+        ignoreLeft,
+        ignoreRight,
+        paramName,
+        paramFormat,
+        upperCase,
+        prefixLength,
+        prefix,
+      };
+
       outputMessage = parseByKey(
         `value.${key.name}`,
         outputMessage,
         inputMessage,
         key.format,
-        key.type,
-        key.ignoreLeft,
-        key.ignoreRight,
-        key.upperCase,
-        key.prefixLength,
-        key.prefix,
-        key.paramName,
-        key.paramFormat);
+        key,
+      );
     });
   }
 

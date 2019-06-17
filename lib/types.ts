@@ -1,34 +1,29 @@
 import { KafkaStreamsConfig } from "kafka-streams";
 import { Logger, LoggerOptions } from "pino";
 
+export interface IFormatOptions {
+  type?: string;
+  ignoreLeft?: number;
+  ignoreRight?: number;
+  upperCase?: boolean;
+  prefixLength?: number;
+  prefix?: string;
+  paramName?: string;
+  paramFormat?: string;
+}
+
 export interface ITopicConfig {
   name: string;
   newName?: string;
   key: {
     proxy: boolean;
-    type?: string;
     format?: string;
-    ignoreLeft?: number;
-    ignoreRight?: number;
-    upperCase?: boolean;
-    prefixLength?: number;
-    prefix?: string;
-    paramName?: string;
-    paramFormat?: string;
-  };
+  } & IFormatOptions;
   proxy: string[];
   alter: Array<{
     name: string;
-    type?: string;
     format: string;
-    ignoreLeft?: number;
-    ignoreRight?: number;
-    upperCase?: boolean;
-    prefixLength?: number;
-    prefix?: string;
-    paramName?: string;
-    paramFormat?: string;
-  }>;
+  } & IFormatOptions>;
 }
 
 export interface IConfig {
