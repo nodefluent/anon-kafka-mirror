@@ -68,6 +68,7 @@ const parseByKey = (
   inputMessage: Map<string, any>,
   format: string,
   formatOptions: IFormatOptions,
+  pattern?: RegExp,
 ) => {
   const [isArray] = isArrayPath(key);
   if (!isArray) {
@@ -76,12 +77,25 @@ const parseByKey = (
     if (keyValue === null) {
       outputMessage = outputMessage.setIn(keyPath, null);
     } else if (keyValue !== undefined) {
-      keyValue = transform(
-        format,
-        keyValue,
-        formatOptions,
-      );
-      outputMessage = outputMessage.setIn(keyPath, keyValue);
+      if (pattern) {
+        if (!Map.isMap(keyValue)) {
+          throw new Error(`Pattern ${pattern} is currently only supported in object path.`);
+        }
+        const names = Array.from(keyValue.keys()) as string[];
+        for (const name of names) {
+          if (pattern.test(name)) {
+            const alteredValue = transform(format, keyValue.get(name), formatOptions);
+            outputMessage = outputMessage.setIn(keyPath.concat([name]), alteredValue);
+          }
+        }
+      } else {
+        keyValue = transform(
+          format,
+          keyValue,
+          formatOptions,
+        );
+        outputMessage = outputMessage.setIn(keyPath, keyValue);
+      }
     }
   } else {
     outputMessage = parseArrayByKey(
@@ -458,12 +472,15 @@ const mapMessageValue = (
         prefix,
       };
 
+      const patternRegExp = key.pattern ? new RegExp(key.pattern) : undefined;
+
       outputMessage = parseByKey(
         `value.${key.name}`,
         outputMessage,
         inputMessage,
         key.format,
-        key,
+        formatOptions,
+        patternRegExp,
       );
     });
   }

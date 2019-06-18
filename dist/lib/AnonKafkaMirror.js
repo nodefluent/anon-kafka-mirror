@@ -40,7 +40,7 @@ var transform = function (format, keyValue, formatOptions) {
             return fake(format, formatOptions.type);
     }
 };
-var parseByKey = function (key, outputMessage, inputMessage, format, formatOptions) {
+var parseByKey = function (key, outputMessage, inputMessage, format, formatOptions, pattern) {
     var isArray = utils_1.isArrayPath(key)[0];
     if (!isArray) {
         var keyPath = utils_1.splitPath(key);
@@ -49,8 +49,23 @@ var parseByKey = function (key, outputMessage, inputMessage, format, formatOptio
             outputMessage = outputMessage.setIn(keyPath, null);
         }
         else if (keyValue !== undefined) {
-            keyValue = transform(format, keyValue, formatOptions);
-            outputMessage = outputMessage.setIn(keyPath, keyValue);
+            if (pattern) {
+                if (!immutable_1.Map.isMap(keyValue)) {
+                    throw new Error("Pattern " + pattern + " is currently only supported in object path.");
+                }
+                var names = Array.from(keyValue.keys());
+                for (var _i = 0, names_1 = names; _i < names_1.length; _i++) {
+                    var name_1 = names_1[_i];
+                    if (pattern.test(name_1)) {
+                        var alteredValue = transform(format, keyValue.get(name_1), formatOptions);
+                        outputMessage = outputMessage.setIn(keyPath.concat([name_1]), alteredValue);
+                    }
+                }
+            }
+            else {
+                keyValue = transform(format, keyValue, formatOptions);
+                outputMessage = outputMessage.setIn(keyPath, keyValue);
+            }
         }
     }
     else {
@@ -318,7 +333,8 @@ var mapMessageValue = function (config, inputMessage, outputMessage) {
                 prefixLength: prefixLength,
                 prefix: prefix,
             };
-            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, key);
+            var patternRegExp = key.pattern ? new RegExp(key.pattern) : undefined;
+            outputMessage = parseByKey("value." + key.name, outputMessage, inputMessage, key.format, formatOptions, patternRegExp);
         });
     }
     var value = outputMessage.get("value");

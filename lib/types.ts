@@ -22,6 +22,7 @@ export interface ITopicConfig {
   proxy: string[];
   alter: Array<{
     name: string;
+    pattern?: string;
     format: string;
   } & IFormatOptions>;
 }

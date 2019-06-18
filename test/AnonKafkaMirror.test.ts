@@ -302,6 +302,38 @@ describe("AnonKafkaMirror", () => {
         expect(hashedString).to.equal("2582443132258");
       });
 
+      it("should hash a string in pattern matched properties", () => {
+        const config = {
+          name: "test",
+          key: { proxy: true },
+          proxy: [],
+          alter: [
+            {
+              name: "someObject",
+              pattern: "abc%7c_.+_part",
+              type: "string",
+              format: "hashed.string",
+            },
+          ],
+        };
+        // TODO: multiple matching values
+        const outputMessage = mapMessage(
+          config,
+          {
+            value: {
+              someObject: {
+                "abc%7c_ignorethis_part": "2401234567899",
+                "abc%7c_thistoo_part": "2401234567899",
+                "abc_thisisdropped_part": "123",
+              },
+            },
+          });
+        const parsedMessage = JSON.parse(outputMessage.value);
+        expect(parsedMessage.someObject["abc%7c_ignorethis_part"]).to.equal("2582443132258");
+        expect(parsedMessage.someObject["abc%7c_thistoo_part"]).to.equal("2582443132258");
+        expect(parsedMessage.someObject.abc_thisisdropped_part).to.be.undefined;
+      });
+
       it("should hash a string and ignore left chars", () => {
         const config = {
           name: "test",
