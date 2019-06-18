@@ -316,7 +316,6 @@ describe("AnonKafkaMirror", () => {
             },
           ],
         };
-        // TODO: multiple matching values
         const outputMessage = mapMessage(
           config,
           {
