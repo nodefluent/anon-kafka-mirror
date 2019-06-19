@@ -302,7 +302,7 @@ var mapMessageKey = function (config, inputMessage, outputMessage) {
         prefixLength: prefixLength,
         prefix: prefix,
     };
-    var keyValue = transform(config.key.format, inputMessage.get("key"), formatOptions);
+    var keyValue = transform(config.key.format, inputMessage.get("key").toString(), formatOptions);
     return outputMessage.set("key", keyValue || null);
 };
 var mapMessageValue = function (config, inputMessage, outputMessage) {

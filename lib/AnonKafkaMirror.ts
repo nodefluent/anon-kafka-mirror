@@ -419,7 +419,7 @@ const mapMessageKey = (
 
   const keyValue = transform(
     config.key.format,
-    inputMessage.get("key"),
+    inputMessage.get("key").toString(),
     formatOptions,
   );
 
