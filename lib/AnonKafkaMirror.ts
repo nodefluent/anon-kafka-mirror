@@ -436,11 +436,12 @@ export class AnonKafkaMirror {
       lastSuccessfulOffsets: [],
     } as ITopicBatchResponse;
     for (let x = 0; x < partitions.length; x++) {
-      result.lastSuccessfulOffsets.push({
-        [partitions[x]]:
-          partitionResults[x] ||
-          partitionedMessages[partitions[x]][partitionedMessages[partitions[x]].length - 1].offset,
-      });
+      const partition = partitions[x];
+      const lastMessage = partitionedMessages[partitions[x]][partitionedMessages[partitions[x]].length - 1];
+      const offset = partitionResults[x] || lastMessage ? lastMessage.offset : undefined;
+      if (offset) {
+        result.lastSuccessfulOffsets.push({ [partition]: offset });
+      }
     }
 
     return result;

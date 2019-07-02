@@ -372,7 +372,7 @@ var AnonKafkaMirror = (function () {
     };
     AnonKafkaMirror.prototype.processBatch = function (partitionedMessages) {
         return __awaiter(this, void 0, void 0, function () {
-            var _a, partitions, partitionResults, result, x;
+            var _a, partitions, partitionResults, result, x, partition, lastMessage, offset;
             var _this = this;
             return __generator(this, function (_b) {
                 switch (_b.label) {
@@ -386,10 +386,12 @@ var AnonKafkaMirror = (function () {
                             lastSuccessfulOffsets: [],
                         };
                         for (x = 0; x < partitions.length; x++) {
-                            result.lastSuccessfulOffsets.push((_a = {},
-                                _a[partitions[x]] = partitionResults[x] ||
-                                    partitionedMessages[partitions[x]][partitionedMessages[partitions[x]].length - 1].offset,
-                                _a));
+                            partition = partitions[x];
+                            lastMessage = partitionedMessages[partitions[x]][partitionedMessages[partitions[x]].length - 1];
+                            offset = partitionResults[x] || lastMessage ? lastMessage.offset : undefined;
+                            if (offset) {
+                                result.lastSuccessfulOffsets.push((_a = {}, _a[partition] = offset, _a));
+                            }
                         }
                         return [2, result];
                 }
