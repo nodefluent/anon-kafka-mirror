@@ -1,5 +1,14 @@
-import { KafkaStreamsConfig } from "kafka-streams";
-import { Logger, LoggerOptions } from "pino";
+import { LoggerOptions } from "pino";
+import {
+  BatchConfig,
+  KafkaConsumerConfig,
+  KafkaProducerConfig,
+} from "sinek";
+
+export interface ITopicBatchResponse {
+  hasErrors: boolean;
+  lastSuccessfulOffsets: Array<{ [partition: string]: number }>;
+}
 
 export interface IFormatOptions {
   type?: string;
@@ -29,16 +38,9 @@ export interface ITopicConfig {
 
 export interface IConfig {
   logger?: LoggerOptions;
-  consumer: KafkaStreamsConfig;
-  producer: {
-    noptions: {
-      [key: string]: string;
-    },
-    tconf: {
-      [key: string]: string | number;
-    },
-    logger?: Logger;
-  };
+  consumer: KafkaConsumerConfig;
+  producer: KafkaProducerConfig;
+  batchConfig: BatchConfig;
   topic: ITopicConfig;
   metrics: {
     port: number,

@@ -27,6 +27,12 @@ const config = {
     },
     logger: null,
   },
+  batchConfig: {
+    batchSize: 500,
+    noBatchCommits: true,
+    manualBatching: true,
+    sortedManualBatch: true,
+  },
   topic: {
     name: "",
     newName: "",

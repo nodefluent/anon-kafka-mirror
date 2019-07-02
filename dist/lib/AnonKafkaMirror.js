@@ -1,10 +1,45 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 var debug_1 = require("debug");
 var express = require("express");
 var faker = require("faker");
 var immutable_1 = require("immutable");
-var kafka_streams_1 = require("kafka-streams");
+var sinek_1 = require("sinek");
 var Metrics_1 = require("./Metrics");
 var utils_1 = require("./utils");
 var debugLogger = debug_1.default("anon-kafka-mirror:mirror");
@@ -232,50 +267,164 @@ exports.mapMessage = function (config, jsonMessage) {
 };
 var AnonKafkaMirror = (function () {
     function AnonKafkaMirror(config) {
-        var _this = this;
         this.config = undefined;
         this.config = config;
         this.app = express();
         this.metrics = null;
         this.alive = true;
-        var kafkaStreams = new kafka_streams_1.KafkaStreams(this.config.consumer);
-        this.stream = kafkaStreams.getKStream();
-        this.stream
-            .from(config.topic.name)
-            .mapJSONConvenience()
-            .map(function (m) { return exports.mapMessage(config.topic, m); })
-            .tap(function (message) {
-            debugLogger(message, "Transformed message");
-            if (_this.metrics) {
-                _this.metrics.transformedCounter.inc();
-            }
-        })
-            .to();
+        this.consumer = new sinek_1.NConsumer(this.config.topic.name, this.config.consumer);
+        this.producer = new sinek_1.NProducer(this.config.producer, null, "auto");
     }
     AnonKafkaMirror.prototype.run = function () {
-        var _this = this;
-        this.app.get("/admin/healthcheck", function (_, res) {
-            res.status(_this.alive ? 200 : 503).end();
-        });
-        this.app.get("/admin/health", function (_, res) {
-            res.status(200).json({
-                status: _this.alive ? "UP" : "DOWN",
-                uptime: process.uptime(),
+        return __awaiter(this, void 0, void 0, function () {
+            var error_1;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        this.app.get("/admin/healthcheck", function (_, res) {
+                            res.status(_this.alive ? 200 : 503).end();
+                        });
+                        this.app.get("/admin/health", function (_, res) {
+                            res.status(200).json({
+                                status: _this.alive ? "UP" : "DOWN",
+                                uptime: process.uptime(),
+                            });
+                        });
+                        if (this.config.metrics && this.config.metrics.port && this.config.metrics.probeIntervalMs) {
+                            this.metrics = new Metrics_1.default(this.config.metrics);
+                            this.metrics.collect(this.app);
+                            this.app.get("/metrics", Metrics_1.default.exposeMetricsRequestHandler);
+                        }
+                        this.app.listen(this.config.metrics.port, function () {
+                            debugLogger("Service up @ http://localhost:" + _this.config.metrics.port);
+                        });
+                        this.consumer.on("error", function (error) { return debugLogger("Kafka consumer error for topics " + _this.config.topic.name + ": " + error); });
+                        this.consumer.on("analytics", function (analytics) { return debugLogger("Kafka consumer analytics for topics " + _this.config.topic.name + ": " +
+                            ("" + JSON.stringify(analytics))); });
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 4, , 5]);
+                        return [4, this.consumer.connect()];
+                    case 2:
+                        _a.sent();
+                        debugLogger("Kafka consumer for topics " + this.config.topic.name + " connected.");
+                        return [4, this.consumer.enableAnalytics({
+                                analyticsInterval: 1000 * 60 * 4,
+                                lagFetchInterval: 1000 * 60 * 5,
+                            })];
+                    case 3:
+                        _a.sent();
+                        this.consumer.consume(function (batchOfMessages, callback) { return __awaiter(_this, void 0, void 0, function () {
+                            var topicPromises, batchSuccessful;
+                            var _this = this;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        topicPromises = Object
+                                            .keys(batchOfMessages)
+                                            .map(function (topic) { return _this.handleSingleTopic(topic, batchOfMessages[topic], _this.processBatch.bind(_this)); });
+                                        return [4, Promise.all(topicPromises)];
+                                    case 1:
+                                        batchSuccessful = _a.sent();
+                                        if (batchSuccessful.every(function (b) { return b === true; })) {
+                                            callback();
+                                        }
+                                        else {
+                                            throw new Error("Failed to consume topics " + this.config.topic.name + ".Stopping consumer...");
+                                        }
+                                        return [2];
+                                }
+                            });
+                        }); }, false, true, this.config.batchConfig);
+                        return [3, 5];
+                    case 4:
+                        error_1 = _a.sent();
+                        debugLogger("Kafka consumer connection error for topics " + this.config.topic.name + ": " + error_1 + " ");
+                        console.error(error_1);
+                        process.exit(1);
+                        return [3, 5];
+                    case 5: return [2];
+                }
             });
         });
-        if (this.config.metrics && this.config.metrics.port && this.config.metrics.probeIntervalMs) {
-            this.metrics = new Metrics_1.default(this.config.metrics);
-            this.metrics.collect(this.app);
-            this.app.get("/metrics", Metrics_1.default.exposeMetricsRequestHandler);
-        }
-        this.app.listen(this.config.metrics.port, function () {
-            debugLogger("Service up @ http://localhost:" + _this.config.metrics.port);
+    };
+    AnonKafkaMirror.prototype.handleSingleTopic = function (topic, messages, singleTopicHandler) {
+        return __awaiter(this, void 0, void 0, function () {
+            var result;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4, singleTopicHandler(messages)];
+                    case 1:
+                        result = _a.sent();
+                        (result.lastSuccessfulOffsets || [])
+                            .forEach(function (p2o) {
+                            return Object.keys(p2o).map(function (p) { return _this.consumer.commitOffsetHard(topic, parseInt(p, 10), p2o[p], false); });
+                        });
+                        return [2, !result.hasErrors];
+                }
+            });
         });
-        return this.stream.start({ outputKafkaConfig: this.config.producer })
-            .catch(function (e) {
-            _this.alive = false;
-            console.error(e);
-            process.exit(1);
+    };
+    AnonKafkaMirror.prototype.processBatch = function (partitionedMessages) {
+        return __awaiter(this, void 0, void 0, function () {
+            var _a, partitions, partitionResults, result, x;
+            var _this = this;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        partitions = Object.keys(partitionedMessages);
+                        return [4, Promise.all(partitions.map(function (p) { return _this.processPartition(partitionedMessages[p]); }))];
+                    case 1:
+                        partitionResults = _b.sent();
+                        result = {
+                            hasErrors: partitionResults.some(function (pr) { return pr !== null; }),
+                            lastSuccessfulOffsets: [],
+                        };
+                        for (x = 0; x < partitions.length; x++) {
+                            result.lastSuccessfulOffsets.push((_a = {},
+                                _a[partitions[x]] = partitionResults[x] ||
+                                    partitionedMessages[partitions[x]][partitionedMessages[partitions[x]].length - 1].offset,
+                                _a));
+                        }
+                        return [2, result];
+                }
+            });
+        });
+    };
+    AnonKafkaMirror.prototype.processPartition = function (messages) {
+        return __awaiter(this, void 0, void 0, function () {
+            var errorOffset, _i, messages_1, message, mappedMessage, error_2;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        errorOffset = null;
+                        _i = 0, messages_1 = messages;
+                        _a.label = 1;
+                    case 1:
+                        if (!(_i < messages_1.length)) return [3, 6];
+                        message = messages_1[_i];
+                        _a.label = 2;
+                    case 2:
+                        _a.trys.push([2, 4, , 5]);
+                        mappedMessage = exports.mapMessage(this.config.topic, message);
+                        return [4, this.producer.send(this.config.topic.newName || this.config.topic.name, mappedMessage.toString(), null, mappedMessage.key)];
+                    case 3:
+                        _a.sent();
+                        return [3, 5];
+                    case 4:
+                        error_2 = _a.sent();
+                        errorOffset = message.offset;
+                        debugLogger("Error processing message of partition " + message.partition + " with offset " +
+                            (message.offset + ": " + JSON.stringify(error_2)));
+                        return [3, 6];
+                    case 5:
+                        _i++;
+                        return [3, 1];
+                    case 6: return [2, errorOffset];
+                }
+            });
         });
     };
     return AnonKafkaMirror;

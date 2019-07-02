@@ -7,7 +7,11 @@ export declare class AnonKafkaMirror {
     metrics: Metrics;
     alive: boolean;
     server: any;
-    private stream;
+    private consumer;
+    private producer;
     constructor(config: IConfig);
-    run(): any;
+    run(): Promise<void>;
+    private handleSingleTopic;
+    private processBatch;
+    private processPartition;
 }

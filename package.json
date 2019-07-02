@@ -46,11 +46,11 @@
     "faker": "^4.1.0",
     "gc-profiler": "^1.4.0",
     "immutable": "^3.8.2",
-    "kafka-streams": "^4.6.3",
     "murmurhash": "^0.0.2",
     "pino": "^5.6.1",
     "pino-pretty": "^2.2.0",
-    "prom-client": "^11.1.2"
+    "prom-client": "^11.1.2",
+    "sinek": "^7.29.3"
   },
   "preferGlobal": true,
   "bin": {

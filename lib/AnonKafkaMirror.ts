@@ -4,12 +4,18 @@ import debug from "debug";
 import * as express from "express";
 import * as faker from "faker";
 import { fromJS, List, Map } from "immutable";
-import { KafkaStreams, KStream } from "kafka-streams";
 
+import {
+  KafkaMessage,
+  NConsumer,
+  NProducer,
+  SortedMessageBatch,
+} from "sinek";
 import Metrics from "./Metrics";
 import {
   IConfig,
   IFormatOptions,
+  ITopicBatchResponse,
   ITopicConfig,
 } from "./types";
 import {
@@ -323,7 +329,8 @@ export class AnonKafkaMirror {
   public metrics: Metrics;
   public alive: boolean;
   public server: any;
-  private stream: KStream;
+  private consumer: NConsumer;
+  private producer: NProducer;
 
   constructor(config: IConfig) {
     this.config = config;
@@ -331,22 +338,11 @@ export class AnonKafkaMirror {
     this.metrics = null;
     this.alive = true;
 
-    const kafkaStreams = new KafkaStreams(this.config.consumer);
-    this.stream = kafkaStreams.getKStream();
-    this.stream
-      .from(config.topic.name)
-      .mapJSONConvenience()
-      .map((m) => mapMessage(config.topic, m))
-      .tap((message) => {
-        debugLogger(message, "Transformed message");
-        if (this.metrics) {
-          this.metrics.transformedCounter.inc();
-        }
-      })
-      .to();
+    this.consumer = new NConsumer(this.config.topic.name, this.config.consumer);
+    this.producer = new NProducer(this.config.producer, null, "auto");
   }
 
-  public run() {
+  public async run() {
     this.app.get("/admin/healthcheck", (_, res) => {
       res.status(this.alive ? 200 : 503).end();
     });
@@ -368,13 +364,107 @@ export class AnonKafkaMirror {
       debugLogger(`Service up @ http://localhost:${this.config.metrics.port}`);
     });
 
-    // @ts-ignore
-    return this.stream.start({ outputKafkaConfig: this.config.producer })
-      .catch((e: Error) => {
-        this.alive = false;
-        console.error(e);
-        process.exit(1);
+    this.consumer.on(
+      "error",
+      (error) => debugLogger(`Kafka consumer error for topics ${this.config.topic.name}: ${error}`),
+    );
+
+    this.consumer.on(
+      "analytics",
+      (analytics) => debugLogger(`Kafka consumer analytics for topics ${this.config.topic.name}: ` +
+        `${JSON.stringify(analytics)}`),
+    );
+
+    try {
+      await this.consumer.connect();
+      debugLogger(`Kafka consumer for topics ${this.config.topic.name} connected.`);
+      await this.consumer.enableAnalytics({
+        analyticsInterval: 1000 * 60 * 4, // runs every 4 minutes
+        lagFetchInterval: 1000 * 60 * 5, // runs every 5 minutes
       });
+
+      this.consumer.consume(
+        async (batchOfMessages, callback) => {
+          const topicPromises = Object
+            .keys(batchOfMessages)
+            .map((topic) => this.handleSingleTopic(
+              topic,
+              (batchOfMessages as SortedMessageBatch)[topic],
+              this.processBatch.bind(this)));
+
+          const batchSuccessful = await Promise.all(topicPromises);
+          if (batchSuccessful.every((b) => b === true)) {
+            callback();
+          } else {
+            throw new Error(`Failed to consume topics ${this.config.topic.name}.Stopping consumer...`);
+          }
+        },
+        false,
+        true,
+        this.config.batchConfig);
+
+    } catch (error) {
+      debugLogger(`Kafka consumer connection error for topics ${this.config.topic.name}: ${error} `);
+      console.error(error);
+      process.exit(1);
+    }
+  }
+
+  private async handleSingleTopic(
+    topic: string,
+    messages: { [partition: string]: KafkaMessage[] },
+    singleTopicHandler: (partitions: { [partition: string]: KafkaMessage[] }) => Promise<ITopicBatchResponse>,
+  ) {
+    const result = await singleTopicHandler(messages);
+
+    (result.lastSuccessfulOffsets || [])
+      .forEach((p2o: { [partition: string]: number }) =>
+        Object.keys(p2o).map((p) => this.consumer.commitOffsetHard(topic, parseInt(p, 10), p2o[p], false)));
+
+    return !result.hasErrors;
+  }
+
+  private async processBatch(
+    partitionedMessages: { [partition: string]: KafkaMessage[] },
+  ): Promise<ITopicBatchResponse> {
+    const partitions = Object.keys(partitionedMessages);
+    const partitionResults = await Promise.all(partitions.map((p) => this.processPartition(partitionedMessages[p])));
+
+    const result = {
+      hasErrors: partitionResults.some((pr) => pr !== null),
+      lastSuccessfulOffsets: [],
+    } as ITopicBatchResponse;
+    for (let x = 0; x < partitions.length; x++) {
+      result.lastSuccessfulOffsets.push({
+        [partitions[x]]:
+          partitionResults[x] ||
+          partitionedMessages[partitions[x]][partitionedMessages[partitions[x]].length - 1].offset,
+      });
+    }
+
+    return result;
+  }
+
+  private async processPartition(messages: KafkaMessage[]): Promise<number | null> {
+    let errorOffset = null;
+    for (const message of messages) {
+      try {
+        const mappedMessage = mapMessage(this.config.topic, message);
+        await this.producer.send(
+          this.config.topic.newName || this.config.topic.name,
+          mappedMessage.toString(),
+          null,
+          mappedMessage.key,
+        );
+      } catch (error) {
+        errorOffset = message.offset;
+        debugLogger(`Error processing message of partition ${message.partition} with offset ` +
+          `${message.offset}: ${JSON.stringify(error)}`);
+        break;
+      }
+    }
+
+    return errorOffset;
   }
 }
 
