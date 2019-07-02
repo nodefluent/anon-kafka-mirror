@@ -273,7 +273,7 @@ var AnonKafkaMirror = (function () {
         this.metrics = null;
         this.alive = true;
         this.consumer = new sinek_1.NConsumer(this.config.topic.name, this.config.consumer);
-        this.producer = new sinek_1.NProducer(this.config.producer, null, "auto");
+        this.producer = new sinek_1.NProducer(this.config.producer, null, this.config.topic.partitions || "auto");
     }
     AnonKafkaMirror.prototype.run = function () {
         return __awaiter(this, void 0, void 0, function () {
@@ -282,6 +282,11 @@ var AnonKafkaMirror = (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
+                        process.on("unhandledRejection", function (reason, p) {
+                            var stack = reason instanceof Error && reason.hasOwnProperty("stack") ? ", stack: " + reason.stack : "";
+                            debugLogger("[Uncaught] Unhandled Rejection at: Promise " + p + ", reason: " + reason + stack);
+                            process.exit(1);
+                        });
                         this.app.get("/admin/healthcheck", function (_, res) {
                             res.status(_this.alive ? 200 : 503).end();
                         });

@@ -19,6 +19,7 @@ export interface IFormatOptions {
 export interface ITopicConfig {
     name: string;
     newName?: string;
+    partitions?: number;
     key: {
         proxy: boolean;
         format?: string;
