@@ -395,11 +395,11 @@ var AnonKafkaMirror = (function () {
     };
     AnonKafkaMirror.prototype.processPartition = function (messages) {
         return __awaiter(this, void 0, void 0, function () {
-            var errorOffset, _i, messages_1, message, mappedMessage, error_2;
+            var lastOffset, _i, messages_1, message, mappedMessage, error_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        errorOffset = null;
+                        lastOffset = null;
                         _i = 0, messages_1 = messages;
                         _a.label = 1;
                     case 1:
@@ -412,17 +412,17 @@ var AnonKafkaMirror = (function () {
                         return [4, this.producer.send(this.config.topic.newName || this.config.topic.name, mappedMessage.toString(), null, mappedMessage.key)];
                     case 3:
                         _a.sent();
+                        lastOffset = message.offset;
                         return [3, 5];
                     case 4:
                         error_2 = _a.sent();
-                        errorOffset = message.offset;
                         debugLogger("Error processing message of partition " + message.partition + " with offset " +
                             (message.offset + ": " + JSON.stringify(error_2)));
                         return [3, 6];
                     case 5:
                         _i++;
                         return [3, 1];
-                    case 6: return [2, errorOffset];
+                    case 6: return [2, lastOffset];
                 }
             });
         });

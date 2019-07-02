@@ -446,7 +446,7 @@ export class AnonKafkaMirror {
   }
 
   private async processPartition(messages: KafkaMessage[]): Promise<number | null> {
-    let errorOffset = null;
+    let lastOffset = null;
     for (const message of messages) {
       try {
         const mappedMessage = mapMessage(this.config.topic, message);
@@ -456,15 +456,15 @@ export class AnonKafkaMirror {
           null,
           mappedMessage.key,
         );
+        lastOffset = message.offset;
       } catch (error) {
-        errorOffset = message.offset;
         debugLogger(`Error processing message of partition ${message.partition} with offset ` +
           `${message.offset}: ${JSON.stringify(error)}`);
         break;
       }
     }
 
-    return errorOffset;
+    return lastOffset;
   }
 }
 
