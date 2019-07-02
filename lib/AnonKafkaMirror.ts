@@ -339,10 +339,17 @@ export class AnonKafkaMirror {
     this.alive = true;
 
     this.consumer = new NConsumer(this.config.topic.name, this.config.consumer);
-    this.producer = new NProducer(this.config.producer, null, "auto");
+    this.producer = new NProducer(this.config.producer, null, this.config.topic.partitions || "auto");
   }
 
   public async run() {
+
+    process.on("unhandledRejection", (reason, p) => {
+      const stack = reason instanceof Error && reason.hasOwnProperty("stack") ? `, stack: ${reason.stack}` : "";
+      debugLogger(`[Uncaught] Unhandled Rejection at: Promise ${p}, reason: ${reason}${stack}`);
+      process.exit(1);
+    });
+
     this.app.get("/admin/healthcheck", (_, res) => {
       res.status(this.alive ? 200 : 503).end();
     });
