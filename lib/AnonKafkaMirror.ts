@@ -376,6 +376,7 @@ export class AnonKafkaMirror {
     );
 
     try {
+      await this.producer.connect();
       await this.consumer.connect();
       debugLogger(`Kafka consumer for topics ${this.config.topic.name} connected.`);
       await this.consumer.enableAnalytics({
@@ -390,7 +391,7 @@ export class AnonKafkaMirror {
             .map((topic) => this.handleSingleTopic(
               topic,
               (batchOfMessages as SortedMessageBatch)[topic],
-              this.processBatch.bind(this)));
+              (batch) => this.processBatch(batch)));
 
           const batchSuccessful = await Promise.all(topicPromises);
           if (batchSuccessful.every((b) => b === true)) {
@@ -446,25 +447,25 @@ export class AnonKafkaMirror {
   }
 
   private async processPartition(messages: KafkaMessage[]): Promise<number | null> {
-    let lastOffset = null;
+    let failedMessageOffset = null;
     for (const message of messages) {
       try {
         const mappedMessage = mapMessage(this.config.topic, message);
-        await this.producer.send(
+        const produceResult = await this.producer.send(
           this.config.topic.newName || this.config.topic.name,
-          mappedMessage.toString(),
+          mappedMessage.value,
           null,
           mappedMessage.key,
         );
-        lastOffset = message.offset;
       } catch (error) {
+        failedMessageOffset = message.offset;
         debugLogger(`Error processing message of partition ${message.partition} with offset ` +
-          `${message.offset}: ${JSON.stringify(error)}`);
+          `${message.offset}: ${error}`);
         break;
       }
     }
 
-    return lastOffset;
+    return failedMessageOffset;
   }
 }
 

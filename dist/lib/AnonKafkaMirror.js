@@ -304,16 +304,19 @@ var AnonKafkaMirror = (function () {
                             ("" + JSON.stringify(analytics))); });
                         _a.label = 1;
                     case 1:
-                        _a.trys.push([1, 4, , 5]);
-                        return [4, this.consumer.connect()];
+                        _a.trys.push([1, 5, , 6]);
+                        return [4, this.producer.connect()];
                     case 2:
+                        _a.sent();
+                        return [4, this.consumer.connect()];
+                    case 3:
                         _a.sent();
                         debugLogger("Kafka consumer for topics " + this.config.topic.name + " connected.");
                         return [4, this.consumer.enableAnalytics({
                                 analyticsInterval: 1000 * 60 * 4,
                                 lagFetchInterval: 1000 * 60 * 5,
                             })];
-                    case 3:
+                    case 4:
                         _a.sent();
                         this.consumer.consume(function (batchOfMessages, callback) { return __awaiter(_this, void 0, void 0, function () {
                             var topicPromises, batchSuccessful;
@@ -323,7 +326,7 @@ var AnonKafkaMirror = (function () {
                                     case 0:
                                         topicPromises = Object
                                             .keys(batchOfMessages)
-                                            .map(function (topic) { return _this.handleSingleTopic(topic, batchOfMessages[topic], _this.processBatch.bind(_this)); });
+                                            .map(function (topic) { return _this.handleSingleTopic(topic, batchOfMessages[topic], function (batch) { return _this.processBatch(batch); }); });
                                         return [4, Promise.all(topicPromises)];
                                     case 1:
                                         batchSuccessful = _a.sent();
@@ -337,14 +340,14 @@ var AnonKafkaMirror = (function () {
                                 }
                             });
                         }); }, false, true, this.config.batchConfig);
-                        return [3, 5];
-                    case 4:
+                        return [3, 6];
+                    case 5:
                         error_1 = _a.sent();
                         debugLogger("Kafka consumer connection error for topics " + this.config.topic.name + ": " + error_1 + " ");
                         console.error(error_1);
                         process.exit(1);
-                        return [3, 5];
-                    case 5: return [2];
+                        return [3, 6];
+                    case 6: return [2];
                 }
             });
         });
@@ -395,11 +398,11 @@ var AnonKafkaMirror = (function () {
     };
     AnonKafkaMirror.prototype.processPartition = function (messages) {
         return __awaiter(this, void 0, void 0, function () {
-            var lastOffset, _i, messages_1, message, mappedMessage, error_2;
+            var failedMessageOffset, _i, messages_1, message, mappedMessage, produceResult, error_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        lastOffset = null;
+                        failedMessageOffset = null;
                         _i = 0, messages_1 = messages;
                         _a.label = 1;
                     case 1:
@@ -409,20 +412,20 @@ var AnonKafkaMirror = (function () {
                     case 2:
                         _a.trys.push([2, 4, , 5]);
                         mappedMessage = exports.mapMessage(this.config.topic, message);
-                        return [4, this.producer.send(this.config.topic.newName || this.config.topic.name, mappedMessage.toString(), null, mappedMessage.key)];
+                        return [4, this.producer.send(this.config.topic.newName || this.config.topic.name, mappedMessage.value, null, mappedMessage.key)];
                     case 3:
-                        _a.sent();
-                        lastOffset = message.offset;
+                        produceResult = _a.sent();
                         return [3, 5];
                     case 4:
                         error_2 = _a.sent();
+                        failedMessageOffset = message.offset;
                         debugLogger("Error processing message of partition " + message.partition + " with offset " +
-                            (message.offset + ": " + JSON.stringify(error_2)));
+                            (message.offset + ": " + error_2));
                         return [3, 6];
                     case 5:
                         _i++;
                         return [3, 1];
-                    case 6: return [2, lastOffset];
+                    case 6: return [2, failedMessageOffset];
                 }
             });
         });
