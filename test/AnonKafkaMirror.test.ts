@@ -294,9 +294,6 @@ describe("AnonKafkaMirror", () => {
         const value = JSON.parse(result.value);
         expect(value.a).to.have.length(2);
         expect(value.b).to.have.length(2);
-        //   .to.deep.equal({ key: null, value: "{\"a\":[1,3]}" });
-        // expect(mapMessage(config, { value: {} }))
-        //   .to.deep.equal({ key: null, value: "{\"b\":[{\"d\":1},{\"c\":1}]}" });
       });
 
       it("should hash uuids in query parameters", () => {
