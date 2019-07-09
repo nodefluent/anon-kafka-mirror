@@ -142,10 +142,10 @@ const parseArrayByKey = (
     }
     keyArray.forEach((v, i) => {
       let keyPath = prefixPath.concat([i]);
-      let newListPath = prefixPath.concat([i]);
+      let listIndex = prefixPath.concat([i]);
       if (isSubArray && suffixPrefix) {
         keyPath = keyPath.concat([suffixPrefix]);
-        newListPath = newListPath.concat([suffixPrefix]);
+        listIndex = listIndex.concat([suffixPrefix]);
       }
 
       const prefixValue = inputMessage.getIn(keyPath);
@@ -160,11 +160,10 @@ const parseArrayByKey = (
       } else {
         if (suffix) {
           keyPath = keyPath.concat(splitPath(suffix));
-          newListPath = newListPath.concat(splitPath(suffix));
         }
         let keyValue = inputMessage.getIn(keyPath);
         if (keyValue === null) {
-          outputMessage = outputMessage.setIn(newListPath, null);
+          outputMessage = outputMessage.setIn(keyPath, null);
         } else if (keyValue !== undefined) {
           if (Map.isMap(keyValue)) {
             let mapValue = keyValue.getIn(splitPath(suffix));
@@ -174,7 +173,7 @@ const parseArrayByKey = (
               formatOptions,
             );
             if (mapValue !== undefined) {
-              outputMessage = outputMessage.setIn(newListPath, mapValue);
+              outputMessage = outputMessage.setIn(keyPath, mapValue);
             }
           } else if (List.isList(keyValue)) {
             const joinedKeyPath = keyPath.join(".");
@@ -192,11 +191,17 @@ const parseArrayByKey = (
               keyValue,
               formatOptions,
             );
-            outputMessage = outputMessage.setIn(newListPath, keyValue);
+            if (!outputMessage.hasIn(listIndex)) {
+              outputMessage = outputMessage.setIn(listIndex, Map());
+            }
+            outputMessage = outputMessage.setIn(keyPath, keyValue);
           }
         }
       }
     });
+
+    const outputKeyArray = outputMessage.getIn(prefixPath);
+    outputMessage = outputMessage.setIn(prefixPath, outputKeyArray.filter((v) => v !== null && v !== undefined));
   }
 
   return outputMessage;
@@ -255,10 +260,10 @@ const proxyArrayByKey = (
   }
   keyArray.forEach((v, i) => {
     let keyPath = prefixPath.concat([i]);
-    let newListPath = prefixPath.concat([i]);
+    let listIndex = prefixPath.concat([i]);
     if (isSubArray && suffixPrefix) {
       keyPath = keyPath.concat([suffixPrefix]);
-      newListPath = newListPath.concat([suffixPrefix]);
+      listIndex = prefixPath.concat([suffixPrefix]);
     }
     const prefixValue = inputMessage.getIn(keyPath);
     if (List.isList(prefixValue)) {
@@ -270,16 +275,15 @@ const proxyArrayByKey = (
     } else {
       if (suffix) {
         keyPath = keyPath.concat(splitPath(suffix));
-        newListPath = newListPath.concat(splitPath(suffix));
       }
       const keyValue = inputMessage.getIn(keyPath);
       if (keyValue === null) {
-        outputMessage = outputMessage.setIn(newListPath, null);
+        outputMessage = outputMessage.setIn(listIndex, null);
       } else if (keyValue !== undefined) {
         if (Map.isMap(keyValue)) {
           const mapValue = keyValue.getIn(splitPath(suffix));
           if (mapValue !== undefined) {
-            outputMessage = outputMessage.setIn(newListPath, mapValue);
+            outputMessage = outputMessage.setIn(keyPath, mapValue);
           }
         } else if (List.isList(keyValue)) {
           const joinedKeyPath = keyPath.join(".");
@@ -290,11 +294,18 @@ const proxyArrayByKey = (
             outputMessage,
           );
         } else {
-          outputMessage = outputMessage.setIn(newListPath, keyValue);
+          if (!outputMessage.hasIn(listIndex)) {
+            outputMessage = outputMessage.setIn(listIndex, Map());
+          }
+          outputMessage = outputMessage.setIn(keyPath, keyValue);
         }
       }
     }
   });
+
+  const outputKeyArray = outputMessage.getIn(prefixPath);
+  outputMessage = outputMessage.setIn(prefixPath, outputKeyArray.filter((v) => v !== null && v !== undefined));
+
   return outputMessage;
 };
 

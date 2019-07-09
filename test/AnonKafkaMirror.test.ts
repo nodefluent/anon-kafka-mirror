@@ -129,6 +129,23 @@ describe("AnonKafkaMirror", () => {
         expect(mapMessage(config, { value: { i: [{ j: [1, 2] }, { y: [2, 3] }] } }))
           .to.deep.equal({ key: null, value: "{\"i\":[{\"j\":[1,2]}]}" });
       });
+
+      it("should proxy arrays of values and objects only with matching content", () => {
+        const config = {
+          name: "test",
+          key: { proxy: true },
+          proxy: [
+            "a[*]",
+            "b[*]d",
+            "b[*]c",
+          ],
+          alter: [],
+        };
+        expect(mapMessage(config, { value: { a: [1, null, 3] } }))
+          .to.deep.equal({ key: null, value: "{\"a\":[1,3]}" });
+        expect(mapMessage(config, { value: { b: [{ d: 1 }, null, { e: 1 }, { c: 1 }] } }))
+          .to.deep.equal({ key: null, value: "{\"b\":[{\"d\":1},{\"c\":1}]}" });
+      });
     });
 
     describe("alter properties in the value", () => {
@@ -241,6 +258,45 @@ describe("AnonKafkaMirror", () => {
         expect(value.z[0][0].y).to.be.a("string");
         expect(value.a).to.be.not.ok;
         expect(value.b).to.be.not.ok;
+      });
+
+      it("should alter arrays of values and objects only with matching content", () => {
+        const config = {
+          name: "test",
+          key: { proxy: true },
+          proxy: [],
+          alter: [
+            {
+              name: "a[*]",
+              type: "number",
+              format: "random.number",
+            },
+            {
+              name: "b[*]d",
+              type: "number",
+              format: "random.number",
+            },
+            {
+              name: "b[*]c",
+              type: "number",
+              format: "random.number",
+            },
+          ],
+        };
+        const result = mapMessage(
+          config,
+          {
+            value: {
+              a: [1, null, 3],
+              b: [{ d: 1 }, null, { e: 1 }, { c: 1 }],
+            },
+          });
+        const value = JSON.parse(result.value);
+        expect(value.a).to.have.length(2);
+        expect(value.b).to.have.length(2);
+        //   .to.deep.equal({ key: null, value: "{\"a\":[1,3]}" });
+        // expect(mapMessage(config, { value: {} }))
+        //   .to.deep.equal({ key: null, value: "{\"b\":[{\"d\":1},{\"c\":1}]}" });
       });
 
       it("should hash uuids in query parameters", () => {
