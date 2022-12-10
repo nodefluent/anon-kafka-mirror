@@ -42,7 +42,7 @@
   "dependencies": {
     "commander": "^2.18.0",
     "debug": "^4.0.1",
-    "express": "^4.16.3",
+    "express": "^4.17.3",
     "faker": "^4.1.0",
     "gc-profiler": "^1.4.0",
     "immutable": "^3.8.2",
